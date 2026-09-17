@@ -6,6 +6,7 @@ import { Calendar as CalendarIcon } from "lucide-react";
 import { Button } from "../../button";
 import { Calendar } from "../../calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "../../popover";
+import { cn } from "@/lib/utils";
 
 type DatePickerProps = {
   value: Date | undefined;
@@ -13,10 +14,11 @@ type DatePickerProps = {
   placeholder?: string;
   className?: string;
   formatString?: string;
-  disablePast?: boolean;
-  disableBefore?: Date;
-  disabled?: boolean;
-  Layout?: "dropdown" | "label" | "dropdown-years" | "dropdown-months";
+  disablePast?: boolean; // Add disablePast prop
+  Layout?: "dropdown" | "label" | "dropdown-years" | "dropdown-months"; //  layout prop
+  triggerClassName?: string;
+  displayText?: string;
+  showText?: boolean;
 };
 
 export const DatePicker: React.FC<DatePickerProps> = ({
@@ -24,42 +26,30 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   onChange,
   placeholder = "Pick a date",
   className,
-  formatString = "PPP",
-  disablePast = false,
-  disableBefore,
-  disabled = false,
-  Layout = "dropdown",
+  formatString = "PPP", // Default to 'PPP' format, you can customize
+  disablePast = false, // Default to false
+  Layout = "dropdown", // Default caption layout
+  triggerClassName,
+  displayText,
+  showText = true,
 }) => {
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const isDisabled = (date: Date) => {
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    if (disableBefore) {
-      const before = new Date(disableBefore);
-      before.setHours(0, 0, 0, 0);
-      return d < before;
-    }
-    if (disablePast) return d < today;
-    return false;
-  };
+  today.setHours(0, 0, 0, 0); // Set time to midnight to ignore time part
 
   return (
-    <div className={`w-full ${className ?? ""}`}>
+    <div className={cn("w-full p-6 flex justify-center", className)}>
       <Popover>
-        <PopoverTrigger
-          disabled={disabled}
-          render={
-            <Button
-              variant="outline"
-              data-empty={!value}
-              className="w-full data-[empty=true]:text-muted-foreground justify-start text-left font-normal disabled:opacity-50 disabled:cursor-not-allowed"
-            />
-          }
-        >
-          <CalendarIcon />
-          {value ? format(value, formatString) : <span>{placeholder}</span>}
+        <PopoverTrigger>
+          <Button
+            variant="outline"
+            data-empty={!value}
+            className={cn("data-[empty=true]:text-muted-foreground justify-start text-left font-normal", triggerClassName)}
+          >
+            <CalendarIcon />
+            {showText && (
+              displayText ? <span>{displayText}</span> : (value ? format(value, formatString) : <span className="placeholder:text-base-color/50!">{placeholder}</span>)
+            )}
+          </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0">
           <Calendar
@@ -68,10 +58,16 @@ export const DatePicker: React.FC<DatePickerProps> = ({
             selected={value}
             onSelect={onChange}
             captionLayout={Layout}
-            disabled={isDisabled}
+            disabled={disablePast ? (date) => {
+              // Disable dates before today (ignoring time)
+              const compareDate = new Date(date);
+              compareDate.setHours(0, 0, 0, 0);
+              return compareDate < today;
+            } : undefined} // Disable past dates if disablePast is true
           />
         </PopoverContent>
       </Popover>
     </div>
   );
 };
+

@@ -75,11 +75,11 @@ export const FileUpload = ({
                 onClick={handleClick}
                 className="flex flex-col items-center justify-center rounded-md border-2 border-dashed border-secondary-color bg-base-color/5 p-6 cursor-pointer hover:bg-base-color/10 transition-colors"
             >
-                <Upload className="size-8 mb-2 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">
+                <Upload className="size-8 mb-2 placeholder:text-base-color/50!" />
+                <p className="text-sm placeholder:text-base-color/50!">
                     Click to upload or drag and drop
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs placeholder:text-base-color/50! mt-1">
                     {value.length}/{maxFiles} files uploaded
                 </p>
             </button>
@@ -112,7 +112,7 @@ export const FileUpload = ({
                                         className="w-10 h-10 object-cover"
                                     />
                                 ) : (
-                                    <File className="size-12 text-muted-foreground" />
+                                    <File className="size-12 placeholder:text-base-color/50!" />
                                 )}
                             </div>
 
@@ -121,7 +121,7 @@ export const FileUpload = ({
                                 <p className="text-xs font-medium truncate" title={item.file.name}>
                                     {item.file.name?.slice(0, 40)}
                                 </p>
-                                <p className="text-xs text-muted-foreground">
+                                <p className="text-xs placeholder:text-base-color/50!">
                                     {(item.file.size / 1024).toFixed(1)} KB
                                 </p>
                             </div>

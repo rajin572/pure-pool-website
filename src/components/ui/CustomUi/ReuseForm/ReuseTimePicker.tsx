@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
-import { Clock } from "lucide-react";
+import { CalendarIcon } from "lucide-react";
 import { Button } from "../../button";
 import { Popover, PopoverContent, PopoverTrigger } from "../../popover";
-import { ScrollArea, ScrollBar } from "../../scroll-area";
+import { cn } from "@/lib/utils";
 
 // Define possible props for the component
 interface DateTimePickerProps {
@@ -17,6 +17,8 @@ interface DateTimePickerProps {
     placeholder?: string; // Placeholder text
     disablePast?: boolean; // Disable past times if today
     disable?: boolean; // Disable the popover if true
+    triggerClassName?: string; // Custom button styling
+    className?: string; // Custom container styling
 }
 
 export function ReuseTimePicker({
@@ -28,13 +30,15 @@ export function ReuseTimePicker({
     placeholder = "Select a time", // Default placeholder
     disablePast = false, // Default disablePast to false
     disable = false, // Default to false (popover enabled)
+    triggerClassName,
+    className,
 }: DateTimePickerProps) {
     // Get today's date and current time to disable past times
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Set the time to midnight to compare only the date part
     const currentTime = new Date(); // Current time to compare with
 
-    // Get current AM/PM based on selectedTime or current time
+    // Get current AM/PM based on value or current time
     const getCurrentAMPM = (): "AM" | "PM" => {
         if (value) {
             return value.getHours() >= 12 ? "PM" : "AM";
@@ -42,24 +46,80 @@ export function ReuseTimePicker({
         return currentTime.getHours() >= 12 ? "PM" : "AM";
     };
 
-    const [selectedTime, setSelectedTime] = useState<Date | undefined>(value);
-    const [timeAMPMFormat, setTimeAMPMFormat] = useState<"AM" | "PM">(getCurrentAMPM());
+    const [selectedPeriod, setSelectedPeriod] = useState<"AM" | "PM">(getCurrentAMPM);
+    const timeAMPMFormat = value ? (value.getHours() >= 12 ? "PM" : "AM") : selectedPeriod;
+    const [open, setOpen] = useState(false);
 
-    console.log("Selected Time:", selectedTime, "AM/PM:", timeAMPMFormat);
+    const popoverContentRef = useRef<HTMLDivElement>(null);
+    const hoursRef = useRef<HTMLDivElement>(null);
+    const minutesRef = useRef<HTMLDivElement>(null);
 
-    // Adjust local state during render if the value prop changed, instead of in an effect
-    const [prevValue, setPrevValue] = useState(value);
-    if (value !== prevValue) {
-        setPrevValue(value);
-        setSelectedTime(value);
-        if (value) {
-            setTimeAMPMFormat(value.getHours() >= 12 ? "PM" : "AM");
-        }
-    }
+    // Stop wheel and touchmove events from bubbling to document where Radix Dialog's RemoveScroll prevents scrolling
+    useEffect(() => {
+        const el = popoverContentRef.current;
+        if (!el) return;
+
+        const stopScrollPropagation = (e: Event) => {
+            e.stopPropagation();
+        };
+
+        el.addEventListener("wheel", stopScrollPropagation, { passive: false });
+        el.addEventListener("touchmove", stopScrollPropagation, { passive: false });
+
+        return () => {
+            el.removeEventListener("wheel", stopScrollPropagation);
+            el.removeEventListener("touchmove", stopScrollPropagation);
+        };
+    }, [open]);
+
+    // Scroll selected hour and minute into view when opened or changed
+    useEffect(() => {
+        if (!open) return;
+        const timer = setTimeout(() => {
+            if (hoursRef.current) {
+                const activeHour = hoursRef.current.querySelector('[data-selected="true"]');
+                if (activeHour) {
+                    (activeHour as HTMLElement).scrollIntoView({ block: "center", behavior: "auto" });
+                }
+            }
+            if (minutesRef.current) {
+                const activeMinute = minutesRef.current.querySelector('[data-selected="true"]');
+                if (activeMinute) {
+                    (activeMinute as HTMLElement).scrollIntoView({ block: "center", behavior: "auto" });
+                }
+            }
+        }, 30);
+        return () => clearTimeout(timer);
+    }, [open, value, timeAMPMFormat]);
 
     const handleTimeChange = (type: "hour" | "minute" | "ampm", changeValue: string) => {
-        const currentDate = selectedTime || new Date();
-        const newDate = new Date(currentDate);
+        if (type === "ampm") {
+            const newPeriod = changeValue as "AM" | "PM";
+            setSelectedPeriod(newPeriod);
+            if (!value) return;
+
+            const newDate = new Date(value);
+            const hours = newDate.getHours();
+            if (newPeriod === "AM" && hours >= 12) {
+                newDate.setHours(hours - 12);
+            } else if (newPeriod === "PM" && hours < 12) {
+                newDate.setHours(hours + 12);
+            }
+            onChange(newDate);
+            return;
+        }
+
+        const baseDate = value || selectedDate || new Date();
+        const newDate = new Date(baseDate);
+
+        if (!value && timeFormat === "12-hour") {
+            const currentHours = newDate.getHours();
+            if (timeAMPMFormat === "PM" && currentHours < 12) {
+                newDate.setHours(currentHours + 12);
+            } else if (timeAMPMFormat === "AM" && currentHours >= 12) {
+                newDate.setHours(currentHours - 12);
+            }
+        }
 
         if (type === "hour") {
             const hour = parseInt(changeValue, 10);
@@ -78,17 +138,8 @@ export function ReuseTimePicker({
             }
         } else if (type === "minute") {
             newDate.setMinutes(parseInt(changeValue, 10));
-        } else if (type === "ampm") {
-            setTimeAMPMFormat(changeValue as "AM" | "PM");
-            const hours = newDate.getHours();
-            if (changeValue === "AM" && hours >= 12) {
-                newDate.setHours(hours - 12);
-            } else if (changeValue === "PM" && hours < 12) {
-                newDate.setHours(hours + 12);
-            }
         }
 
-        setSelectedTime(newDate);
         onChange(newDate); // Pass the new date back to the parent
     };
 
@@ -152,95 +203,107 @@ export function ReuseTimePicker({
     }
 
     return (
-        <Popover>
-            <PopoverTrigger
-                render={<Button variant={"outline"} className="w-fit pl-3 text-left font-normal" />}
-            >
-                {selectedTime ? (
-                    format(selectedTime, formatString) // Only show time without date
-                ) : (
-                    <span>{placeholder}</span>
-                )}
-                <Clock className="ml-auto h-4 w-4 opacity-50" />
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger>
+                <Button variant={"outline"} className={cn("w-fit pl-3 text-left font-normal", triggerClassName, className)}>
+                    {value ? (
+                        format(value, formatString) // Only show time without date
+                    ) : (
+                        <span className="placeholder:text-base-color/50!">{placeholder}</span>
+                    )}
+                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-                <div className="flex flex-col sm:flex-row py-5 divide-y sm:divide-y-0 sm:divide-x">
-                    {/* ScrollArea for Hours */}
-                    <ScrollArea className="w-64 sm:w-auto h-62.5 overflow-auto">
-                        <div className="flex sm:flex-col p-2">
-                            {Array.from({ length: timeFormat === "12-hour" ? 12 : 24 }, (_, i) => i).map(
-                                (hour) => {
-                                    const displayHour = timeFormat === "12-hour" && hour === 0 ? 12 : hour;
-                                    return (
-                                        <Button
-                                            key={hour}
-                                            size="icon"
-                                            variant={
-                                                selectedTime &&
-                                                    (timeFormat === "12-hour"
-                                                        ? (selectedTime.getHours() % 12 === 0 ? 12 : selectedTime.getHours() % 12) === displayHour
-                                                        : selectedTime.getHours() === hour)
-                                                    ? "default"
-                                                    : "ghost"
-                                            }
-                                            className="sm:w-full shrink-0 aspect-square"
-                                            onClick={() => handleTimeChange("hour", displayHour.toString())}
-                                            disabled={isTimeDisabled(displayHour, 0, timeAMPMFormat, true)} // Pass AM/PM and isHourCheck=true
-                                        >
-                                            {displayHour}
-                                        </Button>
-                                    );
-                                }
-                            )}
-                        </div>
-                        <ScrollBar orientation="horizontal" className="sm:hidden" />
-                    </ScrollArea>
-                    {/* ScrollArea for Minutes */}
-                    <ScrollArea className="w-64 sm:w-auto h-62.5 overflow-auto">
-                        <div className="flex sm:flex-col p-2">
-                            {Array.from({ length: 60 }, (_, i) => i).map((minute) => {
-                                const currentHour = selectedTime ? selectedTime.getHours() : 0;
-                                const displayHour = timeFormat === "12-hour"
-                                    ? (currentHour % 12 === 0 ? 12 : currentHour % 12)
-                                    : currentHour;
-
+            <PopoverContent
+                ref={popoverContentRef}
+                className="w-auto p-0 z-50"
+                onWheel={(e) => {
+                    e.stopPropagation();
+                    e.nativeEvent.stopImmediatePropagation();
+                }}
+                onTouchMove={(e) => {
+                    e.stopPropagation();
+                    e.nativeEvent.stopImmediatePropagation();
+                }}
+            >
+                <div className="flex flex-row py-3 divide-x select-none">
+                    {/* Hours list */}
+                    <div
+                        ref={hoursRef}
+                        className="w-16 h-[250px] overflow-y-auto overflow-x-hidden p-1.5 flex flex-col gap-1 overscroll-contain"
+                        style={{ scrollbarWidth: "thin" }}
+                    >
+                        {Array.from({ length: timeFormat === "12-hour" ? 12 : 24 }, (_, i) => i).map(
+                            (hour) => {
+                                const displayHour = timeFormat === "12-hour" && hour === 0 ? 12 : hour;
+                                const isSelected = value &&
+                                    (timeFormat === "12-hour"
+                                        ? (value.getHours() % 12 === 0 ? 12 : value.getHours() % 12) === displayHour
+                                        : value.getHours() === hour);
                                 return (
                                     <Button
-                                        key={minute}
+                                        key={hour}
                                         size="icon"
-                                        variant={
-                                            selectedTime && selectedTime.getMinutes() === minute
-                                                ? "default"
-                                                : "ghost"
-                                        }
-                                        className="sm:w-full shrink-0 aspect-square"
-                                        onClick={() => handleTimeChange("minute", minute.toString())}
-                                        disabled={isTimeDisabled(displayHour, minute, timeAMPMFormat)} // Pass AM/PM
+                                        data-selected={isSelected ? "true" : undefined}
+                                        variant={isSelected ? "default" : "ghost"}
+                                        className="w-full shrink-0 aspect-square text-sm font-medium"
+                                        onClick={() => handleTimeChange("hour", displayHour.toString())}
+                                        disabled={isTimeDisabled(displayHour, 0, timeAMPMFormat, true)}
                                     >
-                                        {minute.toString().padStart(2, "0")}
+                                        {displayHour}
                                     </Button>
                                 );
-                            })}
-                        </div>
-                        <ScrollBar orientation="horizontal" className="sm:hidden" />
-                    </ScrollArea>
-                    {/* ScrollArea for AM/PM (Only for 12-hour format) */}
+                            }
+                        )}
+                    </div>
+
+                    {/* Minutes list */}
+                    <div
+                        ref={minutesRef}
+                        className="w-16 h-[250px] overflow-y-auto overflow-x-hidden p-1.5 flex flex-col gap-1 overscroll-contain"
+                        style={{ scrollbarWidth: "thin" }}
+                    >
+                        {Array.from({ length: 60 }, (_, i) => i).map((minute) => {
+                            const currentHour = value ? value.getHours() : 0;
+                            const displayHour = timeFormat === "12-hour"
+                                ? (currentHour % 12 === 0 ? 12 : currentHour % 12)
+                                : currentHour;
+                            const isSelected = value && value.getMinutes() === minute;
+
+                            return (
+                                <Button
+                                    key={minute}
+                                    size="icon"
+                                    data-selected={isSelected ? "true" : undefined}
+                                    variant={isSelected ? "default" : "ghost"}
+                                    className="w-full shrink-0 aspect-square text-sm font-medium"
+                                    onClick={() => handleTimeChange("minute", minute.toString())}
+                                    disabled={isTimeDisabled(displayHour, minute, timeAMPMFormat)}
+                                >
+                                    {minute.toString().padStart(2, "0")}
+                                </Button>
+                            );
+                        })}
+                    </div>
+
+                    {/* AM/PM list (Only for 12-hour format) */}
                     {timeFormat === "12-hour" && (
-                        <ScrollArea className="h-62.5 overflow-auto">
-                            <div className="flex sm:flex-col p-2">
-                                {["AM", "PM"].map((ampm) => (
-                                    <Button
-                                        key={ampm}
-                                        size="icon"
-                                        variant={timeAMPMFormat === ampm ? "default" : "ghost"}
-                                        className="sm:w-full shrink-0 aspect-square"
-                                        onClick={() => handleTimeChange("ampm", ampm)}
-                                    >
-                                        {ampm}
-                                    </Button>
-                                ))}
-                            </div>
-                        </ScrollArea>
+                        <div
+                            className="w-16 h-[250px] overflow-y-auto overflow-x-hidden p-1.5 flex flex-col gap-1 overscroll-contain"
+                            style={{ scrollbarWidth: "thin" }}
+                        >
+                            {["AM", "PM"].map((ampm) => (
+                                <Button
+                                    key={ampm}
+                                    size="icon"
+                                    variant={timeAMPMFormat === ampm ? "default" : "ghost"}
+                                    className="w-full shrink-0 aspect-square text-sm font-medium"
+                                    onClick={() => handleTimeChange("ampm", ampm)}
+                                >
+                                    {ampm}
+                                </Button>
+                            ))}
+                        </div>
                     )}
                 </div>
             </PopoverContent>

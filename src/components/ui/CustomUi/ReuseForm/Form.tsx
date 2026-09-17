@@ -12,7 +12,7 @@ import {
   FieldLabel,
 } from "../../field";
 import { Input } from "../../input";
-import React, { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { Textarea } from "../../textarea";
 import {
   Select,
@@ -21,10 +21,14 @@ import {
   SelectValue,
 } from "../../select";
 import { Checkbox } from "../../checkbox";
-import { EyeIcon, EyeOffIcon } from "lucide-react";
+import { Switch } from "../../switch";
+import { CalendarIcon, ChevronDownIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { MultiSelect } from "./MultiSelect";
 import { FileUpload } from "./FileUpload";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { Calendar } from "../../calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "../../popover";
 
 type FormControlProps<
   TFieldValues extends FieldValues = FieldValues,
@@ -32,9 +36,10 @@ type FormControlProps<
   TTransformedValues = TFieldValues
 > = {
   name: TName;
-  label: ReactNode;
+  label?: ReactNode;
   description?: ReactNode;
   control: ControllerProps<TFieldValues, TName, TTransformedValues>["control"];
+  className?: string;
 };
 
 type FormBaseProps<
@@ -76,18 +81,20 @@ export function FormBase<
   description,
   controlFirst,
   horizontal,
+  className,
 }: FormBaseProps<TFieldValues, TName, TTransformedValues>) {
   return (
     <Controller
       control={control}
       name={name}
       render={({ field, fieldState }) => {
-        const labelElement = (
+        const hasLabel = Boolean(label);
+        const labelElement = (hasLabel || description) ? (
           <>
-            <FieldLabel className=" text-sm font-medium" htmlFor={field.name}>{label}</FieldLabel>
+            {hasLabel && <FieldLabel className=" text-sm font-medium" htmlFor={field.name}>{label}</FieldLabel>}
             {description && <FieldDescription>{description}</FieldDescription>}
           </>
-        );
+        ) : null;
         const control = children({
           ...field,
           id: field.name,
@@ -101,18 +108,17 @@ export function FormBase<
           <Field
             data-invalid={fieldState.invalid}
             orientation={horizontal ? "horizontal" : undefined}
+            className={className}
           >
             {controlFirst ? (
               <>
                 {control}
-                <FieldContent>
-                  {labelElement}
-                  {errorElem}
-                </FieldContent>
+                {labelElement && <FieldContent>{labelElement}</FieldContent>}
+                {errorElem}
               </>
             ) : (
               <>
-                <FieldContent>{labelElement}</FieldContent>
+                {labelElement && <FieldContent>{labelElement}</FieldContent>}
                 {control}
                 {errorElem}
               </>
@@ -127,11 +133,12 @@ export function FormBase<
 export const FormInput: FormControlFunc<{
   prefix?: ReactNode;
   suffix?: ReactNode;
-  placeholder?: string;
   inputClassName?: string;
+  placeholder?: string;
+  disabled?: boolean;
   type?: string;
 }> = (props) => {
-  const { prefix, suffix, placeholder, inputClassName, type, ...restProps } = props;
+  const { prefix, suffix, inputClassName, placeholder, disabled, type, ...restProps } = props;
 
   return (
     <FormBase {...restProps}>
@@ -143,14 +150,15 @@ export const FormInput: FormControlFunc<{
             </div>
           )}
           <Input
-            type={type}
             className={cn(
-              "placeholder:text-base-color/50! bg-primary-color! border! border-base-color/30! focus:border-base-color/70! outline-none! shadow! ring-0! text-base! py-2!",
+              "border-[#E5E5E5]! bg-[#F5F5F5]! placeholder:text-base-color/50! outline-none! shadow-none! ring-0! text-base! py-5!",
               prefix && "pl-10",
               suffix && "pr-10",
               inputClassName
             )}
+            type={type}
             placeholder={placeholder}
+            disabled={disabled}
             {...field}
           />
           {suffix && (
@@ -164,8 +172,15 @@ export const FormInput: FormControlFunc<{
   );
 };
 
-export const FormTextarea: FormControlFunc<{ prefix?: ReactNode; suffix?: ReactNode; inputClassName?: string }> = (props) => {
-  const { prefix, suffix, inputClassName, ...restProps } = props;
+export const FormTextarea: FormControlFunc<{
+  prefix?: ReactNode;
+  suffix?: ReactNode;
+  inputClassName?: string;
+  placeholder?: string;
+  rows?: number;
+  disabled?: boolean;
+}> = (props) => {
+  const { prefix, suffix, inputClassName, placeholder, rows, disabled, ...restProps } = props;
 
   return (
     <FormBase {...restProps}>
@@ -178,11 +193,14 @@ export const FormTextarea: FormControlFunc<{ prefix?: ReactNode; suffix?: ReactN
           )}
           <Textarea
             className={cn(
-              "placeholder:text-base-color/50! bg-primary-color! border! border-base-color/30! focus:border-base-color/70! outline-none! shadow! ring-0! text-base! py-2! min-h-20",
+              "placeholder:text-base-color/50! bg-primary-color!  border! border-base-color/30! focus:border-base-color/70! outline-none! shadow! ring-0! text-base! py-2! min-h-20",
               prefix && "pl-10",
               suffix && "pr-10",
               inputClassName
             )}
+            placeholder={placeholder}
+            rows={rows}
+            disabled={disabled}
             {...field}
           />
           {suffix && (
@@ -246,7 +264,9 @@ export const FormSelect: FormControlFunc<{
   placeholder?: string;
   prefix?: ReactNode;
   suffix?: ReactNode;
-}> = ({ children, placeholder = "Select an option", prefix, suffix, ...props }) => {
+  triggerClassName?: string;
+  disabled?: boolean;
+}> = ({ children, placeholder = "Select an option", prefix, suffix, triggerClassName, disabled, ...props }) => {
   return (
     <FormBase {...props}>
       {({ onChange, onBlur, ...field }) => (
@@ -256,12 +276,13 @@ export const FormSelect: FormControlFunc<{
               {prefix}
             </div>
           )}
-          <Select {...field} onValueChange={onChange}>
+          <Select {...field} onValueChange={onChange} disabled={disabled}>
             <SelectTrigger
               className={cn(
-                "w-full bg-primary-color! border! border-base-color/30! focus:border-base-color/70! outline-none! shadow! ring-0! text-base! py-5!",
+                "w-full bg-primary-color! border! border-base-color/30! placeholder:text-base-color/50! focus:border-base-color/70! outline-none! shadow! ring-0! text-base! py-5!",
                 prefix && "pl-10",
-                suffix && "pr-10"
+                suffix && "pr-10",
+                triggerClassName
               )}
               aria-invalid={field["aria-invalid"]}
               id={field.id}
@@ -269,7 +290,7 @@ export const FormSelect: FormControlFunc<{
             >
               <SelectValue placeholder={placeholder} />
             </SelectTrigger>
-            <SelectContent className="max-h-100!">{children}</SelectContent>
+            <SelectContent>{children}</SelectContent>
           </Select>
           {suffix && (
             <div className="absolute right-10 top-1/2 -translate-y-1/2 z-10">
@@ -322,67 +343,27 @@ export const FormMultiSelect: FormControlFunc<{
 
 
 
-export const FormDurationInput: FormControlFunc = (props) => {
-  return (
-    <FormBase {...props}>
-      {({ onChange, value, id, "aria-invalid": ariaInvalid }) => {
-        const strVal = (value as string) || "";
-        const parts = strVal.split(":");
-        const hrDisplay = parts[0] ?? "";
-        const minDisplay = parts[1] ?? "";
-
-        const handleHrChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-          const h = Math.max(0, Math.min(23, Number(e.target.value) || 0));
-          onChange(`${h}:${minDisplay || "00"}`);
-        };
-
-        const handleMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-          const m = Math.max(0, Math.min(59, Number(e.target.value) || 0));
-          onChange(`${hrDisplay || "0"}:${m.toString().padStart(2, "0")}`);
-        };
-
-        return (
-          <div
-            id={id}
-            aria-invalid={ariaInvalid}
-            className={cn(
-              "flex items-center rounded-md border border-base-color/30 bg-primary-color shadow text-base",
-              ariaInvalid && "border-destructive"
-            )}
-          >
-            <input
-              type="number"
-              min={0}
-              max={23}
-              value={hrDisplay}
-              onChange={handleHrChange}
-              placeholder="0"
-              className="w-12 text-center bg-transparent outline-none py-2 px-2 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-            />
-            <span className="text-base-color/60 font-semibold select-none">:</span>
-            <input
-              type="number"
-              min={0}
-              max={59}
-              value={minDisplay}
-              onChange={handleMinChange}
-              placeholder="00"
-              className="w-12 text-center bg-transparent outline-none py-2 px-2 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-            />
-            <span className="ml-auto pr-3 text-sm text-base-color/40 select-none">hr : min</span>
-          </div>
-        );
-      }}
-    </FormBase>
-  );
-};
-
 export const FormCheckbox: FormControlFunc = (props) => {
   return (
     <FormBase {...props} horizontal controlFirst>
       {({ onChange, value, ...field }) => (
         <Checkbox
-          className="border-secondary-color bg-base-color/5"
+          className="border-secondary-color placeholder:text-base-color/50! bg-base-color/5"
+          {...field}
+          checked={value}
+          onCheckedChange={onChange}
+        />
+      )}
+    </FormBase>
+  );
+};
+
+export const FormSwitch: FormControlFunc = (props) => {
+  return (
+    <FormBase {...props} horizontal>
+      {({ onChange, value, ...field }) => (
+        <Switch
+          className="data-[state=checked]:bg-secondary-color"
           {...field}
           checked={value}
           onCheckedChange={onChange}
@@ -411,3 +392,185 @@ export const FormUpload: FormControlFunc<{
     </FormBase>
   );
 };
+
+const CalendarDropdown = ({
+  value,
+  onChange,
+  options,
+}: {
+  value?: string | number | readonly string[];
+  onChange?: React.ChangeEventHandler<HTMLSelectElement>;
+  options?: { value: number; label: string; disabled: boolean }[];
+  [key: string]: unknown;
+}) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const currentLabel = options?.find((o) => String(o.value) === String(value))?.label ?? String(value);
+
+  useEffect(() => {
+    const handleOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    if (open) document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1 h-7 px-2 text-sm rounded-md hover:bg-accent"
+      >
+        {currentLabel}
+        <ChevronDownIcon className="size-3 opacity-50" />
+      </button>
+      {open && (
+        <div
+          className="absolute top-full left-0 mt-1 z-50 min-w-20 bg-popover border border-border rounded-md shadow-md overflow-y-auto"
+          style={{ maxHeight: "200px" }}
+          onWheel={(e) => e.stopPropagation()}
+        >
+          {options?.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              disabled={opt.disabled}
+              className={cn(
+                "w-full text-left px-3 py-1.5 text-sm hover:bg-accent cursor-pointer disabled:opacity-40 disabled:cursor-default",
+                String(opt.value) === String(value) && "bg-accent font-medium"
+              )}
+              onClick={() => {
+                onChange?.({ target: { value: String(opt.value) } } as React.ChangeEvent<HTMLSelectElement>);
+                setOpen(false);
+              }}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export const FormDatePicker: FormControlFunc<{
+  placeholder?: string;
+  disablePast?: boolean;
+  disableFuture?: boolean;
+  formatString?: string;
+  startMonth?: Date;
+  endMonth?: Date;
+  triggerClassName?: string;
+  showText?: boolean;
+  showIcon?: boolean;
+}> = ({
+  placeholder = "Pick a date",
+  disablePast = false,
+  disableFuture = false,
+  formatString = "PPP",
+  startMonth,
+  endMonth,
+  triggerClassName,
+  showText = true,
+  showIcon = true,
+  ...props
+}) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const defaultStart = disablePast
+      ? new Date(today.getFullYear(), 0, 1)
+      : new Date(1900, 0, 1);
+
+    const defaultEnd = disableFuture
+      ? new Date(today.getFullYear(), today.getMonth() + 1, 0)
+      : new Date(today.getFullYear() + 20, 11, 31);
+
+    const disabledDates = (date: Date) => {
+      const d = new Date(date);
+      d.setHours(0, 0, 0, 0);
+      if (disablePast && d < today) return true;
+      if (disableFuture && d > today) return true;
+      return false;
+    };
+
+    return (
+      <FormBase {...props}>
+        {({ onChange, value, id, "aria-invalid": ariaInvalid }) => (
+          <Popover>
+            <PopoverTrigger>
+              <button
+                id={id}
+                type="button"
+                aria-invalid={ariaInvalid}
+                className={cn(
+                  "w-full placeholder:text-base-color/50! h-9 flex items-center gap-2 px-3 py-2 text-base rounded-md border border-base-color/30 bg-primary-color shadow text-left",
+                  "focus:outline-none focus:border-base-color/70",
+                  "aria-invalid:border-destructive",
+                  !value && "text-base-color/50",
+                  triggerClassName
+                )}
+              >
+                {showIcon && (
+                  <CalendarIcon className="size-4 shrink-0 text-muted-foreground" />
+                )}
+                {showText && (value ? format(value as Date, formatString) : <span className="placeholder:text-base-color/50!">{placeholder}</span>)}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={value as Date | undefined}
+                onSelect={onChange}
+                captionLayout="dropdown"
+                startMonth={startMonth ?? defaultStart}
+                endMonth={endMonth ?? defaultEnd}
+                components={{ Dropdown: CalendarDropdown }}
+                disabled={disablePast || disableFuture ? disabledDates : undefined}
+              />
+            </PopoverContent>
+          </Popover>
+        )}
+      </FormBase>
+    );
+  };
+
+import { ReuseTimePicker } from "./ReuseTimePicker";
+
+export const FormTimePicker: FormControlFunc<{
+  placeholder?: string;
+  formatString?: string;
+  timeFormat?: "12-hour" | "24-hour";
+  disablePast?: boolean;
+  disable?: boolean;
+  triggerClassName?: string;
+}> = ({
+  placeholder = "Select a time",
+  formatString = "hh:mm aa",
+  timeFormat = "12-hour",
+  disablePast = false,
+  disable = false,
+  triggerClassName,
+  ...props
+}) => {
+    return (
+      <FormBase {...props}>
+        {({ onChange, value }) => (
+          <ReuseTimePicker
+            value={value as Date | undefined}
+            onChange={onChange}
+            placeholder={placeholder}
+            formatString={formatString}
+            timeFormat={timeFormat}
+            disablePast={disablePast}
+            disable={disable}
+            triggerClassName={triggerClassName}
+          />
+        )}
+      </FormBase>
+    );
+  };
+
+export { default as ReuseableForm } from "./ReuseableForm";
+export { SelectItem } from "../../select";
