@@ -4,7 +4,7 @@ import React, { useRef } from "react";
 import Container from "@/components/ui/CustomUi/Container";
 import SectionHeading from "@/components/ui/CustomUi/SectionHeading";
 import Accordion from "@/components/ui/CustomUi/Accordion";
-import { gsap, ScrollTrigger, useGSAP } from "@/lib/gsap-util";
+import { gsap, ScrollTrigger, useGSAP, prefersReducedMotion } from "@/lib/gsap-util";
 
 interface FAQItem {
   id: string;
@@ -56,16 +56,18 @@ export const QuestionsSection: React.FC = () => {
       if (!faqListRef.current) return;
       const items = faqListRef.current.querySelectorAll(".faq-accordion-item");
       if (!items || items.length === 0) return;
+      if (prefersReducedMotion()) return;
 
       gsap.fromTo(
         items,
-        { opacity: 0, y: 24 },
+        { opacity: 0, y: 20 },
         {
           opacity: 1,
           y: 0,
-          duration: 0.6,
+          duration: 0.85,
           stagger: 0.08,
-          ease: "power2.out",
+          ease: "premiumOut",
+          force3D: true,
           scrollTrigger: {
             trigger: faqListRef.current,
             start: "top 85%",

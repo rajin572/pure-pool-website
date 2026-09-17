@@ -4,7 +4,8 @@ import React, { useRef } from "react";
 import Container from "@/components/ui/CustomUi/Container";
 import SectionHeading from "@/components/ui/CustomUi/SectionHeading";
 import { Waves, Wrench, PlusCircle, AlertCircle } from "lucide-react";
-import { gsap, ScrollTrigger, useGSAP } from "@/lib/gsap-util";
+import { gsap, ScrollTrigger, useGSAP, prefersReducedMotion } from "@/lib/gsap-util";
+import { useSpotlight } from "@/lib/useSpotlight";
 
 interface ServiceCard {
   id: string;
@@ -43,12 +44,14 @@ const SERVICES: ServiceCard[] = [
 export const WhatWeDoSection: React.FC = () => {
   const sectionRef = useRef<HTMLElement>(null);
   const cardsRef = useRef<HTMLDivElement>(null);
+  useSpotlight(cardsRef, ".service-card");
 
   useGSAP(
     () => {
       if (!cardsRef.current) return;
       const cards = cardsRef.current.querySelectorAll(".service-card");
       if (!cards || cards.length === 0) return;
+      if (prefersReducedMotion()) return;
 
       const tl = gsap.timeline({
         scrollTrigger: {
@@ -60,13 +63,14 @@ export const WhatWeDoSection: React.FC = () => {
 
       tl.fromTo(
         cards,
-        { opacity: 0, y: 30 },
+        { opacity: 0, y: 28 },
         {
           opacity: 1,
           y: 0,
-          duration: 0.65,
-          stagger: 0.08,
-          ease: "power2.out",
+          duration: 1,
+          stagger: { amount: 0.25, ease: "power2.out" },
+          ease: "premiumOut",
+          force3D: true,
         }
       );
 
@@ -74,15 +78,16 @@ export const WhatWeDoSection: React.FC = () => {
       if (icons.length > 0) {
         tl.fromTo(
           icons,
-          { opacity: 0, scale: 0.75 },
+          { opacity: 0, scale: 0.8 },
           {
             opacity: 1,
             scale: 1,
-            duration: 0.5,
-            stagger: 0.08,
-            ease: "back.out(1.7)",
+            duration: 0.7,
+            stagger: { amount: 0.25, ease: "power2.out" },
+            ease: "back.out(1.4)",
+            force3D: true,
           },
-          0.1
+          0.12
         );
       }
     },
@@ -106,7 +111,7 @@ export const WhatWeDoSection: React.FC = () => {
             return (
               <div
                 key={service.id}
-                className="service-card group p-6 sm:p-7 bg-white rounded-2xl border border-gray-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)] hover:shadow-lg hover:border-sky-400/80 transition-all duration-300 flex flex-col items-start gap-4"
+                className="service-card spotlight-card group p-6 sm:p-7 bg-white rounded-2xl border border-gray-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)] hover:shadow-lg hover:border-sky-400/80 hover:-translate-y-1 transition-all duration-300 flex flex-col items-start gap-4"
               >
                 <div className="service-icon size-11 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform duration-300">
                   <IconComponent className="size-6" />

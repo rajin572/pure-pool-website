@@ -5,7 +5,7 @@ import { GoPlus } from "react-icons/go";
 import { HiMinus } from "react-icons/hi";
 import { FaEdit } from "react-icons/fa";
 import { MdDelete } from "react-icons/md";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { cn } from "../../../lib/utils";
 
 // Define types for the props
@@ -147,12 +147,13 @@ const Accordion: React.FC<AccordionProps> = ({
         >
           {item?.question}
         </span>
-        <span className="shrink-0 text-gray-500 group-hover:text-sky-600 transition-transform duration-300">
-          {isOpen ? (
-            <ChevronUp className="size-5 transition-transform" />
-          ) : (
-            <ChevronDown className="size-5 transition-transform" />
+        <span
+          className={cn(
+            "shrink-0 text-gray-500 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:text-sky-600",
+            isOpen && "rotate-180"
           )}
+        >
+          <ChevronDown className="size-5" />
         </span>
       </button>
       <div
@@ -160,7 +161,7 @@ const Accordion: React.FC<AccordionProps> = ({
         style={{
           height: `${height}px`,
           overflow: "hidden",
-          transition: "height 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
+          transition: "height 0.5s cubic-bezier(0.22, 1, 0.36, 1)",
         }}
       >
         <div

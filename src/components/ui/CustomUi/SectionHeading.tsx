@@ -2,7 +2,7 @@
 
 import React, { useRef } from "react";
 import { cn } from "@/lib/utils";
-import { gsap, ScrollTrigger, useGSAP } from "@/lib/gsap-util";
+import { gsap, ScrollTrigger, SplitText, useGSAP, prefersReducedMotion } from "@/lib/gsap-util";
 
 export interface SectionHeadingProps {
   /**
@@ -105,6 +105,9 @@ export const SectionHeading: React.FC<SectionHeadingProps> = ({
     () => {
       if (!animate || !containerRef.current) return;
 
+      // Reduced motion: leave everything in its natural, fully-visible state.
+      if (prefersReducedMotion()) return;
+
       const tl = gsap.timeline({
         scrollTrigger: {
           trigger: containerRef.current,
@@ -116,56 +119,69 @@ export const SectionHeading: React.FC<SectionHeadingProps> = ({
       if (badgeRef.current) {
         tl.fromTo(
           badgeRef.current,
-          { opacity: 0, y: 12 },
+          { autoAlpha: 0, y: 14 },
           {
-            opacity: 1,
+            autoAlpha: 1,
             y: 0,
-            duration: 0.5,
-            ease: "power2.out",
+            duration: 0.6,
+            ease: "premiumOut",
+            force3D: true,
           },
           0
         );
       }
 
       if (titleRef.current) {
-        tl.fromTo(
-          titleRef.current,
-          { opacity: 0, y: 20 },
+        // Word-by-word "wipe up" reveal — each word slides out from under a mask,
+        // sequenced into the same scroll-triggered timeline as the rest of the heading.
+        const split = SplitText.create(titleRef.current, {
+          type: "words",
+          mask: "words",
+          wordsClass: "sh-word",
+        });
+
+        tl.from(
+          split.words,
           {
-            opacity: 1,
-            y: 0,
-            duration: 0.65,
-            ease: "power2.out",
+            yPercent: 115,
+            rotate: 3,
+            autoAlpha: 0,
+            duration: 0.85,
+            stagger: 0.045,
+            ease: "premiumOut",
+            force3D: true,
           },
-          0.06
+          0.08
         );
       }
 
       if (descRef.current) {
         tl.fromTo(
           descRef.current,
-          { opacity: 0, y: 14 },
+          { autoAlpha: 0, y: 18 },
           {
-            opacity: 1,
+            autoAlpha: 1,
             y: 0,
-            duration: 0.55,
-            ease: "power2.out",
+            duration: 0.75,
+            ease: "premiumOut",
+            force3D: true,
           },
-          0.16
+          0.2
         );
       }
 
       if (childrenRef.current) {
         tl.fromTo(
           childrenRef.current,
-          { opacity: 0, y: 12 },
+          { autoAlpha: 0, y: 16 },
           {
-            opacity: 1,
+            autoAlpha: 1,
             y: 0,
-            duration: 0.5,
-            ease: "power2.out",
+            duration: 0.7,
+            ease: "premiumOut",
+            force3D: true,
           },
-          0.24
+          0.3
         );
       }
     },

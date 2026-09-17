@@ -6,7 +6,8 @@ import Link from "next/link";
 import Container from "@/components/ui/CustomUi/Container";
 import SectionHeading from "@/components/ui/CustomUi/SectionHeading";
 import { AllImages } from "../../../public/images/AllImages";
-import { gsap, ScrollTrigger, useGSAP } from "@/lib/gsap-util";
+import { gsap, ScrollTrigger, useGSAP, prefersReducedMotion } from "@/lib/gsap-util";
+import { useMagnetic } from "@/lib/useMagnetic";
 
 interface GetStartedSectionProps {
   onOpenQuoteModal?: () => void;
@@ -17,10 +18,12 @@ export const GetStartedSection: React.FC<GetStartedSectionProps> = ({
 }) => {
   const sectionRef = useRef<HTMLElement>(null);
   const bgRef = useRef<HTMLDivElement>(null);
+  const ctaRef = useRef<HTMLAnchorElement & HTMLButtonElement>(null);
+  useMagnetic(ctaRef, { strength: 0.25 });
 
   useGSAP(
     () => {
-      if (!sectionRef.current || !bgRef.current) return;
+      if (!sectionRef.current || !bgRef.current || prefersReducedMotion()) return;
 
       gsap.fromTo(
         bgRef.current,
@@ -28,8 +31,9 @@ export const GetStartedSection: React.FC<GetStartedSectionProps> = ({
         {
           opacity: 1,
           scale: 1.05,
-          duration: 1.2,
-          ease: "power2.out",
+          duration: 1.4,
+          ease: "premiumOut",
+          force3D: true,
           scrollTrigger: {
             trigger: sectionRef.current,
             start: "top 85%",
@@ -63,7 +67,7 @@ export const GetStartedSection: React.FC<GetStartedSectionProps> = ({
           sizes="100vw"
           className="object-cover object-center"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-700/80 via-blue-600/75 to-sky-700/80 mix-blend-multiply" />
+        <div className="absolute inset-0 bg-gradient-to-r from-cyan-600/80 via-cyan-600 to-cyan-600/80 mix-blend-multiply" />
         <div className="absolute inset-0 bg-black/25" />
       </div>
 
@@ -82,18 +86,26 @@ export const GetStartedSection: React.FC<GetStartedSectionProps> = ({
           <div className="pt-4">
             {onOpenQuoteModal ? (
               <button
+                ref={ctaRef}
                 type="button"
                 onClick={onOpenQuoteModal}
-                className="px-8 py-3.5 bg-white text-gray-900 rounded-xl font-semibold text-base sm:text-lg shadow-xl hover:bg-white/95 hover:scale-102 transition-all duration-200 active:scale-98 cursor-pointer inline-block"
+                className="group relative isolate overflow-hidden px-8 py-3.5 bg-white text-gray-900 rounded-xl font-semibold text-base sm:text-lg shadow-xl transition-[box-shadow,opacity] duration-200 hover:opacity-95 active:opacity-90 cursor-pointer inline-block will-change-transform"
               >
-                Request a quote
+                <span aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-[inherit]">
+                  <span className="absolute inset-y-0 -left-1/3 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-sky-500/20 to-transparent -translate-x-[200%] transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] motion-safe:group-hover:translate-x-[420%]" />
+                </span>
+                <span className="relative z-10">Request a quote</span>
               </button>
             ) : (
               <Link
+                ref={ctaRef}
                 href="/contact"
-                className="px-8 py-3.5 bg-white text-gray-900 rounded-xl font-semibold text-base sm:text-lg shadow-xl hover:bg-white/95 hover:scale-102 transition-all duration-200 active:scale-98 cursor-pointer inline-block"
+                className="group relative isolate overflow-hidden px-8 py-3.5 bg-white text-gray-900 rounded-xl font-semibold text-base sm:text-lg shadow-xl transition-[box-shadow,opacity] duration-200 hover:opacity-95 active:opacity-90 cursor-pointer inline-block will-change-transform"
               >
-                Request a quote
+                <span aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-[inherit]">
+                  <span className="absolute inset-y-0 -left-1/3 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-sky-500/20 to-transparent -translate-x-[200%] transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] motion-safe:group-hover:translate-x-[420%]" />
+                </span>
+                <span className="relative z-10">Request a quote</span>
               </Link>
             )}
           </div>

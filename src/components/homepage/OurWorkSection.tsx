@@ -7,7 +7,7 @@ import SectionHeading from "@/components/ui/CustomUi/SectionHeading";
 import { AllImages } from "../../../public/images/AllImages";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
-import { gsap, ScrollTrigger, useGSAP } from "@/lib/gsap-util";
+import { gsap, ScrollTrigger, useGSAP, prefersReducedMotion, hasFinePointer } from "@/lib/gsap-util";
 
 export const OurWorkSection: React.FC = () => {
   const sectionRef = useRef<HTMLElement>(null);
@@ -16,26 +16,66 @@ export const OurWorkSection: React.FC = () => {
   useGSAP(
     () => {
       if (!galleryRef.current) return;
-      const cards = galleryRef.current.querySelectorAll(".work-card");
+      const cards = galleryRef.current.querySelectorAll<HTMLElement>(".work-card");
       if (!cards || cards.length === 0) return;
 
-      gsap.fromTo(
-        cards,
-        { opacity: 0, y: 30, scale: 0.97 },
-        {
-          opacity: 1,
-          y: 0,
-          scale: 1,
-          duration: 0.7,
-          stagger: 0.06,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: galleryRef.current,
-            start: "top 85%",
-            toggleActions: "restart none none reverse",
-          },
-        }
-      );
+      const reduceMotion = prefersReducedMotion();
+
+      if (!reduceMotion) {
+        gsap.fromTo(
+          cards,
+          { opacity: 0, y: 25, scale: 0.98 },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 1.05,
+            stagger: { amount: 0.35, ease: "power2.out" },
+            ease: "premiumOut",
+            force3D: true,
+            scrollTrigger: {
+              trigger: galleryRef.current,
+              start: "top 85%",
+              toggleActions: "restart none none reverse",
+            },
+          }
+        );
+      }
+
+      // Subtle 3D tilt that follows the pointer, desktop only.
+      if (!reduceMotion && hasFinePointer()) {
+        const cleanups: Array<() => void> = [];
+
+        cards.forEach((card) => {
+          gsap.set(card, { transformPerspective: 800 });
+          const setRotateX = gsap.quickTo(card, "rotationX", { duration: 0.5, ease: "power3.out" });
+          const setRotateY = gsap.quickTo(card, "rotationY", { duration: 0.5, ease: "power3.out" });
+          const setLift = gsap.quickTo(card, "y", { duration: 0.5, ease: "power3.out" });
+
+          const onMove = (e: PointerEvent) => {
+            const rect = card.getBoundingClientRect();
+            const relX = (e.clientX - rect.left) / rect.width - 0.5;
+            const relY = (e.clientY - rect.top) / rect.height - 0.5;
+            setRotateY(relX * 10);
+            setRotateX(relY * -10);
+            setLift(-4);
+          };
+          const onLeave = () => {
+            setRotateX(0);
+            setRotateY(0);
+            setLift(0);
+          };
+
+          card.addEventListener("pointermove", onMove);
+          card.addEventListener("pointerleave", onLeave);
+          cleanups.push(() => {
+            card.removeEventListener("pointermove", onMove);
+            card.removeEventListener("pointerleave", onLeave);
+          });
+        });
+
+        return () => cleanups.forEach((fn) => fn());
+      }
     },
     { dependencies: [] }
   );
@@ -57,7 +97,7 @@ export const OurWorkSection: React.FC = () => {
             {/* Column 1 */}
             <div className="flex flex-col gap-6 lg:gap-8">
               <PhotoView src={AllImages.pool1.src}>
-                <div className="work-card group relative w-full aspect-[4/3] sm:aspect-square rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer bg-gray-100">
+                <div className="work-card group relative w-full aspect-[4/3] sm:aspect-square rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-shadow duration-300 cursor-pointer bg-gray-100 will-change-transform">
                   <Image
                     src={AllImages.pool1}
                     alt="Lush residential garden pool with palm trees in Madrid"
@@ -74,7 +114,7 @@ export const OurWorkSection: React.FC = () => {
               </PhotoView>
 
               <PhotoView src={AllImages.pool4.src}>
-                <div className="work-card group relative w-full aspect-[4/3] sm:aspect-square rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer bg-gray-100">
+                <div className="work-card group relative w-full aspect-[4/3] sm:aspect-square rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-shadow duration-300 cursor-pointer bg-gray-100 will-change-transform">
                   <Image
                     src={AllImages.pool4}
                     alt="Private estate swimming pool surrounded by greenery"
@@ -94,7 +134,7 @@ export const OurWorkSection: React.FC = () => {
             {/* Column 2 */}
             <div className="flex flex-col gap-6 lg:gap-8">
               <PhotoView src={AllImages.pool2.src}>
-                <div className="work-card group relative w-full aspect-[16/10] rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer bg-gray-100">
+                <div className="work-card group relative w-full aspect-[16/10] rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-shadow duration-300 cursor-pointer bg-gray-100 will-change-transform">
                   <Image
                     src={AllImages.pool2}
                     alt="Panoramic natural landscape swimming pool"
@@ -111,7 +151,7 @@ export const OurWorkSection: React.FC = () => {
               </PhotoView>
 
               <PhotoView src={AllImages.pool3.src}>
-                <div className="work-card group relative w-full aspect-[16/10] rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer bg-gray-100">
+                <div className="work-card group relative w-full aspect-[16/10] rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-shadow duration-300 cursor-pointer bg-gray-100 will-change-transform">
                   <Image
                     src={AllImages.pool3}
                     alt="Modern rooftop city skyline pool"
@@ -128,7 +168,7 @@ export const OurWorkSection: React.FC = () => {
               </PhotoView>
 
               <PhotoView src={AllImages.pool5.src}>
-                <div className="work-card group relative w-full aspect-[4/3] sm:aspect-square rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer bg-gray-100">
+                <div className="work-card group relative w-full aspect-[4/3] sm:aspect-square rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-shadow duration-300 cursor-pointer bg-gray-100 will-change-transform">
                   <Image
                     src={AllImages.pool5}
                     alt="Tropical resort styled lagoon pool with sun loungers"
@@ -148,7 +188,7 @@ export const OurWorkSection: React.FC = () => {
             {/* Column 3 */}
             <div className="flex flex-col gap-6 lg:gap-8 md:col-span-2 lg:col-span-1">
               <PhotoView src={AllImages.pool6.src}>
-                <div className="work-card group relative w-full aspect-[4/3] sm:aspect-square rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer bg-gray-100">
+                <div className="work-card group relative w-full aspect-[4/3] sm:aspect-square rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-shadow duration-300 cursor-pointer bg-gray-100 will-change-transform">
                   <Image
                     src={AllImages.pool6}
                     alt="Commercial hotel pool with clean blue tile"
@@ -165,7 +205,7 @@ export const OurWorkSection: React.FC = () => {
               </PhotoView>
 
               <PhotoView src={AllImages.myPool.src}>
-                <div className="work-card group relative w-full aspect-[4/3] sm:aspect-square rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer bg-gray-100">
+                <div className="work-card group relative w-full aspect-[4/3] sm:aspect-square rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-shadow duration-300 cursor-pointer bg-gray-100 will-change-transform">
                   <Image
                     src={AllImages.myPool}
                     alt="Architectural pergola swimming pool with stepping stones"

@@ -8,7 +8,8 @@ import DownloadModal from "@/components/ui/CustomUi/Modal/DownloadModal";
 import { AllImages } from "../../../public/images/AllImages";
 import { Camera, Activity, CreditCard, FileText } from "lucide-react";
 import { FaApple, FaGooglePlay } from "react-icons/fa6";
-import { gsap, ScrollTrigger, useGSAP } from "@/lib/gsap-util";
+import { gsap, ScrollTrigger, useGSAP, prefersReducedMotion } from "@/lib/gsap-util";
+import { useMagnetic } from "@/lib/useMagnetic";
 
 interface AppFeature {
   id: string;
@@ -47,12 +48,17 @@ const APP_FEATURES: AppFeature[] = [
 export const PurePoolAppSection: React.FC = () => {
   const sectionRef = useRef<HTMLElement>(null);
   const mockupRef = useRef<HTMLDivElement>(null);
+  const appleBtnRef = useRef<HTMLDivElement>(null);
+  const googleBtnRef = useRef<HTMLDivElement>(null);
+  useMagnetic(appleBtnRef, { strength: 0.2 });
+  useMagnetic(googleBtnRef, { strength: 0.2 });
 
   useGSAP(
     () => {
       if (!sectionRef.current) return;
       const features = sectionRef.current.querySelectorAll(".app-feature-item");
       const downloadBtns = sectionRef.current.querySelector(".app-download-btns");
+      if (prefersReducedMotion()) return;
 
       if (features.length > 0) {
         gsap.fromTo(
@@ -61,9 +67,10 @@ export const PurePoolAppSection: React.FC = () => {
           {
             opacity: 1,
             x: 0,
-            duration: 0.6,
-            stagger: 0.08,
-            ease: "power2.out",
+            duration: 0.85,
+            stagger: 0.1,
+            ease: "premiumOut",
+            force3D: true,
             scrollTrigger: {
               trigger: sectionRef.current,
               start: "top 85%",
@@ -80,8 +87,9 @@ export const PurePoolAppSection: React.FC = () => {
           {
             opacity: 1,
             y: 0,
-            duration: 0.55,
-            ease: "power2.out",
+            duration: 0.85,
+            ease: "premiumOut",
+            force3D: true,
             scrollTrigger: {
               trigger: downloadBtns,
               start: "top 90%",
@@ -92,15 +100,16 @@ export const PurePoolAppSection: React.FC = () => {
       }
 
       if (mockupRef.current) {
-        gsap.fromTo(
+        const entrance = gsap.fromTo(
           mockupRef.current,
-          { opacity: 0, y: 35, scale: 0.96 },
+          { opacity: 0, y: 30, scale: 0.96 },
           {
             opacity: 1,
             y: 0,
             scale: 1,
-            duration: 0.8,
-            ease: "power2.out",
+            duration: 1.1,
+            ease: "premiumOut",
+            force3D: true,
             scrollTrigger: {
               trigger: mockupRef.current,
               start: "top 85%",
@@ -118,6 +127,17 @@ export const PurePoolAppSection: React.FC = () => {
             end: "bottom top",
             scrub: 1.2,
           },
+        });
+
+        // Gentle idle float once the entrance settles.
+        entrance.eventCallback("onComplete", () => {
+          gsap.to(mockupRef.current, {
+            y: "+=12",
+            duration: 2.6,
+            ease: "sine.inOut",
+            repeat: -1,
+            yoyo: true,
+          });
         });
       }
     },
@@ -164,7 +184,8 @@ export const PurePoolAppSection: React.FC = () => {
             <div className="app-download-btns flex flex-wrap items-center gap-4 pt-2">
               <DownloadModal>
                 <div
-                  className="flex items-center gap-3 px-5 py-3 rounded-xl bg-black text-white hover:bg-gray-900 shadow-md hover:scale-102 transition-all duration-200 cursor-pointer"
+                  ref={appleBtnRef}
+                  className="flex items-center gap-3 px-5 py-3 rounded-xl bg-black text-white hover:bg-gray-900 shadow-md transition-[background-color,box-shadow] duration-200 cursor-pointer will-change-transform"
                 >
                   <FaApple className="size-7 text-white shrink-0" />
                   <div className="flex flex-col items-start text-left leading-tight">
@@ -180,7 +201,8 @@ export const PurePoolAppSection: React.FC = () => {
 
               <DownloadModal>
                 <div
-                  className="flex items-center gap-3 px-5 py-3 rounded-xl bg-black text-white hover:bg-gray-900 shadow-md hover:scale-102 transition-all duration-200 cursor-pointer"
+                  ref={googleBtnRef}
+                  className="flex items-center gap-3 px-5 py-3 rounded-xl bg-black text-white hover:bg-gray-900 shadow-md transition-[background-color,box-shadow] duration-200 cursor-pointer will-change-transform"
                 >
                   <FaGooglePlay className="size-6 text-white shrink-0" />
                   <div className="flex flex-col items-start text-left leading-tight">

@@ -5,7 +5,7 @@ import Container from "@/components/ui/CustomUi/Container";
 import SectionHeading from "@/components/ui/CustomUi/SectionHeading";
 import ReusableGradientButton from "@/components/ui/CustomUi/ReusableGradientButton";
 import { Check } from "lucide-react";
-import { gsap, ScrollTrigger, useGSAP } from "@/lib/gsap-util";
+import { gsap, ScrollTrigger, useGSAP, prefersReducedMotion } from "@/lib/gsap-util";
 
 interface PlanItem {
   id: string;
@@ -79,6 +79,9 @@ export const MaintenancePlansSection: React.FC<MaintenancePlansSectionProps> = (
       const badge = cardsRef.current.querySelector(".popular-badge");
       if (!cards || cards.length === 0) return;
 
+      const reduceMotion = prefersReducedMotion();
+      if (reduceMotion) return;
+
       const tl = gsap.timeline({
         scrollTrigger: {
           trigger: cardsRef.current,
@@ -89,13 +92,14 @@ export const MaintenancePlansSection: React.FC<MaintenancePlansSectionProps> = (
 
       tl.fromTo(
         cards,
-        { opacity: 0, y: 35 },
+        { opacity: 0, y: 28 },
         {
           opacity: 1,
           y: 0,
-          duration: 0.7,
-          stagger: 0.1,
-          ease: "power2.out",
+          duration: 0.95,
+          stagger: 0.12,
+          ease: "premiumOut",
+          force3D: true,
         }
       );
 
@@ -106,8 +110,9 @@ export const MaintenancePlansSection: React.FC<MaintenancePlansSectionProps> = (
           {
             opacity: 1,
             scale: 1,
-            duration: 0.5,
-            ease: "back.out(2)",
+            duration: 0.65,
+            ease: "back.out(1.5)",
+            force3D: true,
           },
           0.3
         );
@@ -121,8 +126,9 @@ export const MaintenancePlansSection: React.FC<MaintenancePlansSectionProps> = (
           {
             opacity: 1,
             y: 0,
-            duration: 0.5,
-            ease: "power2.out",
+            duration: 0.8,
+            ease: "premiumOut",
+            force3D: true,
           },
           0.4
         );
@@ -150,7 +156,7 @@ export const MaintenancePlansSection: React.FC<MaintenancePlansSectionProps> = (
                 key={plan.id}
                 className={`pricing-card relative flex flex-col justify-between rounded-3xl p-6 sm:p-8 transition-all duration-300 ${isDark
                   ? "bg-[#0c2340] text-white shadow-2xl border-2 border-sky-400/50 scale-100 lg:-translate-y-2"
-                  : "bg-white text-gray-900 shadow-md border border-gray-200/80 hover:shadow-xl"
+                  : "bg-white text-gray-900 shadow-md border border-gray-200/80 hover:shadow-xl hover:-translate-y-1"
                   }`}
               >
                 {plan.isPopular && (

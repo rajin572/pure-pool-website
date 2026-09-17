@@ -3,7 +3,7 @@
 import React, { useRef } from "react";
 import Container from "@/components/ui/CustomUi/Container";
 import SectionHeading from "@/components/ui/CustomUi/SectionHeading";
-import { gsap, ScrollTrigger, useGSAP } from "@/lib/gsap-util";
+import { gsap, ScrollTrigger, useGSAP, prefersReducedMotion } from "@/lib/gsap-util";
 
 interface StepItem {
   number: string;
@@ -41,7 +41,9 @@ export const GettingStartedSection: React.FC = () => {
       if (!stepsContainerRef.current) return;
       const cards = stepsContainerRef.current.querySelectorAll(".step-card");
       const lines = stepsContainerRef.current.querySelectorAll(".step-line");
+      const numbers = stepsContainerRef.current.querySelectorAll(".step-number");
       if (!cards || cards.length === 0) return;
+      if (prefersReducedMotion()) return;
 
       const tl = gsap.timeline({
         scrollTrigger: {
@@ -53,15 +55,32 @@ export const GettingStartedSection: React.FC = () => {
 
       tl.fromTo(
         cards,
-        { opacity: 0, y: 35 },
+        { opacity: 0, y: 28 },
         {
           opacity: 1,
           y: 0,
-          duration: 0.7,
-          stagger: 0.12,
-          ease: "power2.out",
+          duration: 0.95,
+          stagger: 0.14,
+          ease: "premiumOut",
+          force3D: true,
         }
       );
+
+      if (numbers.length > 0) {
+        tl.fromTo(
+          numbers,
+          { opacity: 0, scale: 0.6 },
+          {
+            opacity: 1,
+            scale: 1,
+            duration: 0.5,
+            stagger: 0.14,
+            ease: "back.out(2.2)",
+            force3D: true,
+          },
+          0.1
+        );
+      }
 
       if (lines.length > 0) {
         tl.fromTo(
@@ -70,11 +89,12 @@ export const GettingStartedSection: React.FC = () => {
           {
             scaleX: 1,
             transformOrigin: "left center",
-            duration: 0.6,
-            stagger: 0.12,
-            ease: "power2.out",
+            duration: 0.85,
+            stagger: 0.14,
+            ease: "premiumInOut",
+            force3D: true,
           },
-          0.15
+          0.2
         );
       }
     },
@@ -95,7 +115,7 @@ export const GettingStartedSection: React.FC = () => {
           {STEPS.map((step) => (
             <div key={step.number} className="step-card flex flex-col items-start gap-3.5">
               <div className="w-full flex items-center gap-3">
-                <span className="text-sky-600 text-xs font-mono font-bold tracking-widest uppercase">
+                <span className="step-number text-sky-600 text-xs font-mono font-bold tracking-widest uppercase">
                   {step.number}
                 </span>
                 <div className="step-line flex-1 h-[1px] bg-gray-200" />
