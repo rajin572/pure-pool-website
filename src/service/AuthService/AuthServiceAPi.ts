@@ -45,7 +45,7 @@ export const registerUser = async (
 
     if (result.success) {
       (await cookies()).set(
-        "bsw_signup_token",
+        "purepool_website_signup_token",
         result.data,
         cookieOptions(new Date(Date.now() + 1000 * 60 * 60)) // 1 hour
       );
@@ -70,7 +70,7 @@ export const registerUserOtp = async (
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          token: (await cookies()).get("bsw_signup_token")!.value,
+          token: (await cookies()).get("purepool_website_signup_token")!.value,
         },
         body: JSON.stringify(req.body),
       }
@@ -78,7 +78,7 @@ export const registerUserOtp = async (
     const result = await res.json();
 
     if (result.success) {
-      (await cookies()).delete("bsw_signup_token");
+      (await cookies()).delete("purepool_website_signup_token");
     }
 
     return result;
@@ -106,14 +106,14 @@ export const resendOtp = async (
           "Content-Type": "application/json",
           token:
             req?.body?.purpose === "create"
-              ? (await cookies()).get("bsw_signup_token")!.value
-              : (await cookies()).get("bsw_forget_token")!.value,
+              ? (await cookies()).get("purepool_website_signup_token")!.value
+              : (await cookies()).get("purepool_website_forget_token")!.value,
         },
       }
     );
     const result = await res.json();
     // if (result.success) {
-    //   (await cookies()).set("bsw_signup_token", result.data, {
+    //   (await cookies()).set("purepool_website_signup_token", result.data, {
     //     path: "/",
     //     expires: new Date(Date.now() + 1000 * 60 * 60), // 1 hour
     //   });
@@ -160,13 +160,13 @@ export const loginUser = async (
       const threeMonths = 1000 * 60 * 60 * 24 * 30 * 3; // 3 months in milliseconds
 
       (await cookies()).set(
-        "bsw_access_token",
+        "purepool_website_access_token",
         result?.data?.accessToken,
         cookieOptions(new Date(Date.now() + threeMonths))
       );
 
       (await cookies()).set(
-        "bsw_refresh_token",
+        "purepool_website_refresh_token",
         result?.data?.refreshToken,
         cookieOptions(new Date(Date.now() + threeMonths))
       );
@@ -199,7 +199,7 @@ export const forgetPassword = async (
 
     if (result.success) {
       (await cookies()).set(
-        "bsw_forget_token",
+        "purepool_website_forget_token",
         result.data?.forgetToken,
         cookieOptions(new Date(Date.now() + 1000 * 60 * 60)) // 1 hour
       );
@@ -224,7 +224,7 @@ export const forgetPasswordOtp = async (
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          token: (await cookies()).get("bsw_forget_token")!.value,
+          token: (await cookies()).get("purepool_website_forget_token")!.value,
         },
         body: JSON.stringify(req.body),
       }
@@ -232,9 +232,9 @@ export const forgetPasswordOtp = async (
     const result = await res.json();
 
     if (result.success) {
-      (await cookies()).delete("bsw_forget_token");
+      (await cookies()).delete("purepool_website_forget_token");
       (await cookies()).set(
-        "bsw_forgot_otp_match_token",
+        "purepool_website_forgot_otp_match_token",
         result.data,
         cookieOptions(new Date(Date.now() + 1000 * 60 * 60)) // 1 hour
       );
@@ -258,7 +258,7 @@ export const changePassword = async (
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          token: (await cookies()).get("bsw_forgot_otp_match_token")!.value,
+          token: (await cookies()).get("purepool_website_forgot_otp_match_token")!.value,
         },
         body: JSON.stringify(req.body),
       }
@@ -266,7 +266,7 @@ export const changePassword = async (
     const result = await res.json();
 
     if (result.success) {
-      (await cookies()).delete("bsw_forgot_otp_match_token");
+      (await cookies()).delete("purepool_website_forgot_otp_match_token");
     }
 
     return result;
@@ -276,7 +276,7 @@ export const changePassword = async (
 };
 
 export const getCurrentUser = async () => {
-  const accessToken = (await cookies()).get("bsw_access_token")?.value;
+  const accessToken = (await cookies()).get("purepool_website_access_token")?.value;
   let decodedData = null;
 
   if (accessToken) {
@@ -288,8 +288,8 @@ export const getCurrentUser = async () => {
 };
 
 export const logout = async () => {
-  (await cookies()).delete("bsw_access_token");
-  (await cookies()).delete("bsw_refresh_token");
+  (await cookies()).delete("purepool_website_access_token");
+  (await cookies()).delete("purepool_website_refresh_token");
 };
 
 export const getNewToken = async () => {
@@ -300,7 +300,7 @@ export const getNewToken = async () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: (await cookies()).get("bsw_refresh_token")!.value,
+          Authorization: (await cookies()).get("purepool_website_refresh_token")!.value,
         },
       }
     );
@@ -330,8 +330,8 @@ export const changeUserPassword = async (
     console.log(result)
 
     if (result.success) {
-      (await cookies()).delete("bsw_access_token");
-      (await cookies()).delete("bsw_refresh_token");
+      (await cookies()).delete("purepool_website_access_token");
+      (await cookies()).delete("purepool_website_refresh_token");
     }
 
     return result;
@@ -348,8 +348,8 @@ export const switchRole = async () => {
     const result = await res.json();
 
     // if (result.success) {
-    //   (await cookies()).delete("bsw_access_token");
-    //   (await cookies()).delete("bsw_refresh_token");
+    //   (await cookies()).delete("purepool_website_access_token");
+    //   (await cookies()).delete("purepool_website_refresh_token");
     // }
 
     return result;

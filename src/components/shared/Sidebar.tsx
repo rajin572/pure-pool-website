@@ -41,13 +41,13 @@ export function Sidebar() {
         <Link href="/" className="flex items-center justify-center">
           <Image
             src={AllImages.logo}
-            alt="eKayzone"
+            alt="purepool"
             className="h-auto w-[90%] group-data-[collapsible=icon]:hidden"
             priority
           />
           <Image
-            src={AllImages.logoIcon}
-            alt="eKayzone"
+            src={AllImages.logo}
+            alt="purepool"
             className="hidden h-auto w-7 shrink-0 group-data-[collapsible=icon]:block"
             priority
           />

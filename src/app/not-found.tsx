@@ -1,14 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 const NotFound = () => {
+  const router = useRouter();
   const handleBack = () => {
     if (typeof window !== "undefined") {
       if (window.history.length > 1) {
         window.history.back();
       } else {
-        window.location.href = "/";
+        router.push("/");
       }
     }
   };

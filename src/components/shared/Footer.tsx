@@ -1,188 +1,148 @@
-"use client";
-import { useEffect, useRef } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useGSAP, gsap, ScrollTrigger } from "@/lib/gsap-util";
+import {
+    HiOutlineLocationMarker,
+    HiOutlineMail,
+    HiOutlinePhone,
+} from "react-icons/hi";
+import { FaFacebook, FaInstagram, FaYoutube } from "react-icons/fa6";
+import { AllImages } from "../../../public/images/AllImages";
+import Container from "../ui/CustomUi/Container";
 
-const NAV_LINKS = [
-    { label: "Services", href: "/services" },
-    { label: "How It Works", href: "/how-it-works" },
-    { label: "Features", href: "/features" },
-    { label: "FAQ", href: "/faq" },
-    { label: "Contact", href: "/contact" },
+const ACCOUNT_LINKS = [
+    { label: "My pool specifications", href: "/my-pool-specifications" },
+    { label: "Service history & visits", href: "/service-history" },
+    { label: "Invoices & payment", href: "/billing" },
+    { label: "Contracts & renewals", href: "/contracts-renewals" },
+    { label: "Equipment manuals & warranties", href: "/equipment-manuals-warranties" },
+    { label: "Documents", href: "/documents" },
+] as const;
+
+const SUPPORT_LINKS = [
+    { label: "Help center & FAQ", href: "/help-center" },
+    { label: "Water safety standards (RD 742/2013)", href: "/water-safety-standards" },
 ] as const;
 
 const SOCIAL_LINKS = [
-    { label: "LinkedIn", href: "#" },
-    { label: "Facebook", href: "#" },
-    { label: "Twitter", href: "#" },
+    { label: "Facebook", href: "#", Icon: FaFacebook },
+    { label: "Instagram", href: "#", Icon: FaInstagram },
+    { label: "YouTube", href: "#", Icon: FaYoutube },
 ] as const;
 
-const CONTACT_EMAIL = "admin@bonaventpr.com";
-const CONTACT_NAME = "Bonavent";
-const BRAND_NAME = "Bonavent";
-
-const buildFooterScrollTrigger = (
-    footerEl: HTMLElement,
-    containerEl: HTMLElement
-): ScrollTrigger => {
-    gsap.set(containerEl, { yPercent: -50 });
-
-    const uncover = gsap.timeline({ paused: true });
-    uncover.to(containerEl, { yPercent: 0, ease: "none" });
-
-    const trigger = ScrollTrigger.create({
-        trigger: footerEl,
-        start: "top bottom",
-        end: "+=75%",
-        animation: uncover,
-        scrub: true,
-    });
-
-    return trigger;
-};
+const FooterLinkColumn = ({
+    title,
+    links,
+}: {
+    title: string;
+    links: ReadonlyArray<{ label: string; href: string }>;
+}) => (
+    <div className="flex flex-col gap-3.5 min-w-0">
+        <h3 className="text-sm font-bold uppercase tracking-wider text-primary-color">
+            {title}
+        </h3>
+        <ul className="flex flex-col gap-2.5">
+            {links.map((link) => (
+                <li key={link.label} className="min-w-0">
+                    <Link
+                        href={link.href}
+                        className="text-sm font-medium text-primary-color/80 hover:text-primary-color transition-colors leading-snug block"
+                    >
+                        {link.label}
+                    </Link>
+                </li>
+            ))}
+        </ul>
+    </div>
+);
 
 const Footer = () => {
-    const footerRef = useRef<HTMLElement>(null);
-    const containerRef = useRef<HTMLElement>(null);
-    const triggerRef = useRef<ScrollTrigger | null>(null);
-    const pathname = usePathname();
-
-    // Rebuild ScrollTrigger from scratch — kills any previous one first
-    const rebuildTrigger = () => {
-        if (!footerRef.current || !containerRef.current) return;
-
-        // Kill existing trigger if any
-        if (triggerRef.current) {
-            triggerRef.current.kill();
-            triggerRef.current = null;
-        }
-
-        // Reset container and create fresh trigger
-        triggerRef.current = buildFooterScrollTrigger(
-            footerRef.current,
-            containerRef.current
-        );
-    };
-
-    // Initial setup on mount
-    useGSAP(
-        () => {
-            if (!footerRef.current || !containerRef.current) return;
-            triggerRef.current = buildFooterScrollTrigger(
-                footerRef.current,
-                containerRef.current
-            );
-
-            return () => {
-                if (triggerRef.current) {
-                    triggerRef.current.kill();
-                    triggerRef.current = null;
-                }
-            };
-        },
-        { scope: footerRef }
-    );
-
-    // Listen for page transition end to rebuild the trigger
-    // at the correct time — after the new page has fully rendered
-    useEffect(() => {
-        const handleTransitionEnd = () => {
-            rebuildTrigger();
-        };
-
-        window.addEventListener("pageTransitionEnd", handleTransitionEnd);
-        return () => {
-            window.removeEventListener("pageTransitionEnd", handleTransitionEnd);
-        };
-    }, []);
-
-    // React to route change: reset visually, then let the event handle the rest
-    useEffect(() => {
-        if (!containerRef.current) return;
-
-        // Immediately reset the container so it's hidden on the new page
-        gsap.set(containerRef.current, { yPercent: -50 });
-    }, [pathname]);
-
     return (
-        <footer
-            ref={footerRef}
-            className="h-[75vh] w-screen bg-base-color overflow-hidden relative"
-        >
-            <section
-                ref={containerRef}
-                className="footer-container h-[75vh] w-screen text-primary-color bg-[radial-gradient(ellipse_at_70%_50%,#313a7e_0%,#4d5bde_0%,var(--color-secondary-color)_100%)] flex flex-col justify-between px-6 md:px-12 py-8 md:py-10"
-            >
-                {/* Top row: contact + nav */}
-                <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
-                    <div className="flex flex-col gap-1">
-                        <p className="text-xs sm:text-sm text-primary-color/60">Contact {CONTACT_NAME} at:</p>
-                        <a
-                            href={`mailto:${CONTACT_EMAIL}`}
-                            className="text-sm sm:text-base inline-flex items-center gap-1 text-primary-color hover:text-highlight-color transition-colors w-fit"
-                        >
-                            {CONTACT_EMAIL}
-                            <span aria-hidden="true">↗</span>
-                        </a>
-                    </div>
-
-                    <nav className="flex flex-wrap gap-x-6 gap-y-2 text-sm sm:text-base">
-                        {NAV_LINKS.map((link) => (
-                            <Link
-                                key={link.label}
-                                href={link.href}
-                                className="text-primary-color hover:text-highlight-color transition-colors"
-                            >
-                                {link.label}
-                            </Link>
-                        ))}
-                    </nav>
-                </div>
-
-                {/* Middle: large brand wordmark */}
-                <div className="flex items-center justify-center flex-1 select-none">
-                    <h2 className="text-[18vw] md:text-[16vw] leading-none font-bold tracking-tight uppercase text-primary-color">
-                        {BRAND_NAME}
-                    </h2>
-                </div>
-
-                {/* Bottom row: copyright | legal | socials */}
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between text-xs sm:text-sm">
-                    {/* Copyright */}
-                    <p className="text-primary-color/50">© {new Date().getFullYear()} {CONTACT_NAME}. All rights reserved.</p>
-
-                    {/* Legal links — clearly separated */}
-                    <div className="flex items-center gap-1 border border-primary-color/15 rounded-full px-4 py-1.5">
-                        <Link
-                            href="/privacy-policy"
-                            className="hover:text-primary-color transition-colors cursor-pointer bg-transparent border-0 p-0 text-xs text-primary-color/60"
-                        >Privacy Policy</Link>
-                        <span className="text-primary-color/20 mx-1">·</span>
-                        <Link
-                            href="/terms-and-conditions"
-                            className="hover:text-primary-color transition-colors cursor-pointer bg-transparent border-0 p-0 text-xs text-primary-color/60"
-                        >
-                            Terms & Conditions
+        <footer className="w-full overflow-x-clip bg-sky-950 text-primary-color">
+            <Container className="flex flex-col gap-12 pt-16 pb-12">
+                <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-12 lg:gap-8 xl:gap-12">
+                    {/* Brand Column */}
+                    <div className="flex flex-col items-start gap-3 sm:col-span-2 lg:col-span-4 min-w-0">
+                        <Link href="/" className="inline-block">
+                            <Image
+                                src={AllImages.logoSecondary}
+                                alt="Pure Pool"
+                                width={240}
+                                height={80}
+                                className="h-16 sm:h-18 w-auto object-contain"
+                                priority
+                            />
                         </Link>
+                        <p className="text-sm leading-relaxed text-primary-color/85 max-w-sm">
+                            Pure Pool provides premium, stress-free pool maintenance, diagnostic
+                            chemistry, and warranty protection across Greater Madrid.
+                        </p>
                     </div>
 
-                    {/* Social links */}
-                    <div className="flex flex-wrap gap-x-5 gap-y-2 text-primary-color/50">
-                        {SOCIAL_LINKS.map((social) => (
+                    {/* Account Links */}
+                    <div className="sm:col-span-1 lg:col-span-3 min-w-0">
+                        <FooterLinkColumn title="Your Account" links={ACCOUNT_LINKS} />
+                    </div>
+
+                    {/* Support Links */}
+                    <div className="sm:col-span-1 lg:col-span-2 min-w-0">
+                        <FooterLinkColumn title="Support" links={SUPPORT_LINKS} />
+                    </div>
+
+                    {/* Get In Touch */}
+                    <div className="flex flex-col gap-3.5 sm:col-span-2 lg:col-span-3 min-w-0">
+                        <h3 className="text-sm font-bold uppercase tracking-wider text-primary-color">
+                            Get In Touch
+                        </h3>
+                        <ul className="flex flex-col gap-3 text-sm font-medium text-primary-color/85">
+                            <li className="flex items-start gap-2.5 min-w-0">
+                                <HiOutlineLocationMarker className="mt-0.5 size-5 shrink-0 text-sky-400" />
+                                <span className="leading-snug break-words">
+                                    Calle de Velázquez 94, 1º Izq, 28006 Madrid, Spain
+                                </span>
+                            </li>
+                            <li className="flex items-center gap-2.5 min-w-0">
+                                <HiOutlinePhone className="size-5 shrink-0 text-sky-400" />
+                                <a
+                                    href="tel:+34910882140"
+                                    className="hover:text-primary-color transition-colors"
+                                >
+                                    +34 910 882 140
+                                </a>
+                            </li>
+                            <li className="flex items-center gap-2.5 min-w-0">
+                                <HiOutlineMail className="size-5 shrink-0 text-sky-400" />
+                                <a
+                                    href="mailto:support@purepool.es"
+                                    className="hover:text-primary-color transition-colors truncate"
+                                >
+                                    support@purepool.es
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                {/* Bottom bar */}
+                <div className="flex flex-col items-center gap-5 pt-8 border-t border-white/10 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-xs sm:text-sm text-primary-color/75 text-center sm:text-left">
+                        © {new Date().getFullYear()} Pure Pool. All rights reserved.
+                    </p>
+                    <div className="flex items-center gap-5">
+                        {SOCIAL_LINKS.map(({ label, href, Icon }) => (
                             <a
-                                key={social.label}
-                                href={social.href}
+                                key={label}
+                                href={href}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="hover:text-primary-color transition-colors"
+                                aria-label={label}
+                                className="text-primary-color/80 hover:text-sky-400 hover:scale-110 transition-all duration-200"
                             >
-                                {social.label}
+                                <Icon className="size-5" />
                             </a>
                         ))}
                     </div>
                 </div>
-            </section>
+            </Container>
         </footer>
     );
 };

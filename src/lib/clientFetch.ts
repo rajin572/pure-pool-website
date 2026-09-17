@@ -2,7 +2,7 @@ import Cookies from "js-cookie";
 import { getBaseUrl } from "@/helpers/config/envConfig";
 
 export const clientFetch = async (url: string, options: RequestInit = {}) => {
-    const token = Cookies.get("bsw_access_token");
+    const token = Cookies.get("purepool_website_access_token");
 
     const headers: Record<string, string> = {
         "Content-Type": "application/json",

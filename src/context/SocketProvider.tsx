@@ -13,7 +13,7 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
   // Track token change — this picks up token after login
   useEffect(() => {
     const interval = setInterval(() => {
-      const currentToken = Cookies.get("bsw_access_token");
+      const currentToken = Cookies.get("purepool_website_access_token");
       setToken((prevToken) =>
         prevToken !== currentToken ? currentToken : prevToken
       );
@@ -28,7 +28,7 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
 
     const user = decodedToken(token);
     if (!user) {
-      Cookies.remove("bsw_access_token");
+      Cookies.remove("purepool_website_access_token");
       toast.error("Invalid token. Please log in again.");
       return;
     }

@@ -6,14 +6,13 @@ import React from "react";
 
 const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     return (
-        <div>
-
+        <div className="relative min-h-screen flex flex-col justify-between overflow-x-clip">
             <div className="fixed top-0 h-fit! w-full z-100!">
                 <Navbar />
             </div>
-            <div className="mt-14">
+            <main className="flex-1">
                 {children}
-            </div>
+            </main>
             <Footer />
         </div>
     );
