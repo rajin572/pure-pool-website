@@ -1,7 +1,10 @@
-"use client"; // Error boundaries must be Client Components
+"use client";
 
 import { useEffect } from "react";
-import { AlertTriangle, RotateCcw, Mail } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { AlertCircle, RotateCcw, Home, Mail } from "lucide-react";
+import { AllImages } from "../../public/images/AllImages";
 
 export default function Error({
   error,
@@ -11,126 +14,123 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Log the error to an error reporting service
+    // Log the error to an error reporting service if needed
+    console.error("Pure Pool runtime error:", error);
   }, [error]);
 
   const handleContact = () => {
-    // Open email client with error details
-    const subject = encodeURIComponent("Error Report");
+    const subject = encodeURIComponent("Pure Pool Website Error Report");
     const body = encodeURIComponent(
-      `Error: ${error.message}\nDigest: ${error.digest || "N/A"}`
+      `Hi Pure Pool Support,\n\nI encountered an error on the website.\n\nError Message: ${error.message}\nDigest Code: ${error.digest || "N/A"}\nURL: ${typeof window !== "undefined" ? window.location.href : ""}`
     );
-    window.location.href = `mailto:cvak@frafol.sk?subject=${subject}&body=${body}`;
+    window.location.href = `mailto:support@purepool.es?subject=${subject}&body=${body}`;
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 flex items-center justify-center p-4">
-      <div className="max-w-md w-full">
+    <div className="min-h-screen bg-gradient-to-b from-sky-50/80 via-slate-50 to-sky-100/40 flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">
+      {/* Subtle Ambient Water/Pool Glows */}
+      <div className="absolute -top-32 -right-32 w-96 h-96 bg-sky-300/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-blue-400/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-200/10 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="max-w-lg w-full relative z-10">
         {/* Main Error Card */}
-        <div className="bg-white rounded-2xl shadow-2xl p-8 text-center relative overflow-hidden">
-          {/* Background Pattern */}
-          <div className="absolute inset-0 opacity-5">
-            <div
-              className="absolute -top-4 -right-4 w-24 h-24 rounded-full"
-              style={{ backgroundColor: "#ad2b08" }}
-            ></div>
-            <div
-              className="absolute -bottom-4 -left-4 w-32 h-32 rounded-full"
-              style={{ backgroundColor: "#ad2b08" }}
-            ></div>
+        <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-[0_20px_50px_rgba(2,132,199,0.12),0_4px_16px_rgba(0,0,0,0.04)] border border-sky-100/80 p-7 sm:p-10 text-center relative overflow-hidden">
+          {/* Top Accent Gradient Bar */}
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-sky-400 via-blue-600 to-cyan-400" />
+
+          {/* Logo */}
+          <div className="flex justify-center mb-6">
+            <Link href="/" className="inline-block hover:opacity-90 transition-opacity">
+              <Image
+                src={AllImages.logo}
+                alt="Pure Pool Logo"
+                width={160}
+                height={40}
+                className="h-8 sm:h-9 w-auto object-contain"
+                priority
+              />
+            </Link>
           </div>
 
-          {/* Content */}
-          <div className="relative z-10">
-            {/* Error Icon */}
-            <div
-              className="mx-auto w-20 h-20 rounded-full flex items-center justify-center mb-6"
-              style={{ backgroundColor: "#ad2b08", opacity: 0.1 }}
-            >
-              <AlertTriangle
-                className="w-10 h-10"
-                style={{ color: "#ad2b08" }}
-              />
-            </div>
+          {/* Error Status Icon */}
+          <div className="mx-auto w-16 h-16 rounded-2xl bg-sky-50 border border-sky-200/70 flex items-center justify-center mb-5 text-sky-600 shadow-inner">
+            <AlertCircle className="w-8 h-8 text-sky-600" />
+          </div>
 
-            {/* Main Heading */}
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">
-              {/* Oops! Something went wrong */}
-              Ups! Niečo sa pokazilo
-            </h1>
+          {/* Main Heading */}
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight mb-2.5">
+            Oops! Something went wrong
+          </h1>
 
-            {/* Error Message */}
-            <p className="text-gray-600 mb-2 leading-relaxed">
-              {/* We encountered an unexpected error. Don't worry, our team has
-                  been notified and we're working to fix it. */}
-              Vyskytla sa neočakávaná chyba, ale nebojte sa, náš tím bol
-              upozornený a pracuje na jej odstránení.
-            </p>
+          {/* Error Message */}
+          <p className="text-slate-600 text-sm sm:text-base leading-relaxed max-w-md mx-auto mb-6">
+            An unexpected error occurred while loading this page. Our team has been notified,
+            and we&apos;re working to get everything running smoothly again.
+          </p>
 
-            {/* Error Details (for development) */}
-            {process.env.NODE_ENV === "development" && (
-              <div className="bg-gray-50 rounded-lg p-3 mb-6 text-left">
-                <p className="text-sm text-gray-500 mb-1">Error Details:</p>
-                <p className="text-sm text-gray-700 font-mono break-all">
-                  {error.message}
-                </p>
+          {/* Error Details (for development) */}
+          {process.env.NODE_ENV === "development" && (
+            <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-4 mb-6 text-left shadow-xs">
+              <div className="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-slate-200/70">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  Error Details (Dev Mode)
+                </span>
                 {error.digest && (
-                  <p className="text-sm text-gray-500 mt-1">
-                    Digest: {error.digest}
-                  </p>
+                  <span className="text-[10px] font-mono font-medium bg-slate-200 text-slate-700 px-2 py-0.5 rounded-md">
+                    ID: {error.digest.slice(0, 8)}
+                  </span>
                 )}
               </div>
-            )}
-
-            {/* Action Buttons */}
-            <div className="space-y-3 mt-8">
-              <button
-                onClick={reset}
-                className="w-full text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 flex items-center justify-center gap-2 cursor-pointer"
-                style={{ backgroundColor: "#ad2b08" }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.backgroundColor = "#8a2206")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.backgroundColor = "#ad2b08")
-                }
-              >
-                <RotateCcw className="w-4 h-4" />
-                {/* Try Again */}
-                Skúsiť znova
-              </button>
-            </div>
-
-            {/* Contact Support */}
-            <div className="mt-8 pt-6 border-t border-gray-200">
-              <p className="text-sm text-gray-500 mb-3">
-                {/* Still having trouble? */}
-                Stále to nefunguje?
+              <p className="text-xs text-rose-600 font-mono break-words leading-relaxed max-h-36 overflow-y-auto">
+                {error.message || "An unknown runtime error occurred."}
               </p>
-              <button
-                onClick={handleContact}
-                className="font-medium text-sm transition-colors duration-200 flex items-center justify-center gap-1 mx-auto cursor-pointer"
-                style={{ color: "#ad2b08" }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "#8a2206")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "#ad2b08")}
-              >
-                <Mail className="w-4 h-4" />
-                cvak@frafol.sk
-              </button>
             </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row items-center gap-3 mt-6">
+            <button
+              onClick={reset}
+              type="button"
+              className="w-full sm:flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-white font-semibold text-sm bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 shadow-md shadow-sky-500/25 transition-all duration-200 transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Try Again
+            </button>
+            <Link
+              href="/"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-slate-700 hover:text-slate-900 font-semibold text-sm bg-slate-100 hover:bg-slate-200/80 border border-slate-200 transition-all duration-200 cursor-pointer"
+            >
+              <Home className="w-4 h-4" />
+              Back to Home
+            </Link>
+          </div>
+
+          {/* Contact Support */}
+          <div className="mt-8 pt-6 border-t border-slate-100">
+            <p className="text-xs sm:text-sm text-slate-500 mb-2">
+              Still having trouble?
+            </p>
+            <button
+              onClick={handleContact}
+              type="button"
+              className="inline-flex items-center justify-center gap-1.5 text-xs sm:text-sm font-semibold text-sky-600 hover:text-sky-700 transition-colors cursor-pointer group"
+            >
+              <Mail className="w-4 h-4 text-sky-500 group-hover:scale-110 transition-transform" />
+              <span>support@purepool.es</span>
+            </button>
           </div>
         </div>
 
-        {/* Error Code */}
-        <div className="text-center mt-6">
-          <p className="text-white/60 text-sm">
-            {error.digest && (
-              <>
-                Error ID: <span className="font-mono">{error.digest}</span>
-              </>
-            )}
-          </p>
-        </div>
+        {/* Error Code / Digest */}
+        {error.digest && (
+          <div className="text-center mt-4">
+            <p className="text-xs text-slate-400 font-mono">
+              Error Digest: {error.digest}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

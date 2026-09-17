@@ -39,17 +39,14 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   return (
     <div className={cn("w-full p-6 flex justify-center", className)}>
       <Popover>
-        <PopoverTrigger>
-          <Button
-            variant="outline"
-            data-empty={!value}
-            className={cn("data-[empty=true]:text-muted-foreground justify-start text-left font-normal", triggerClassName)}
-          >
-            <CalendarIcon />
-            {showText && (
-              displayText ? <span>{displayText}</span> : (value ? format(value, formatString) : <span className="placeholder:text-base-color/50!">{placeholder}</span>)
-            )}
-          </Button>
+        <PopoverTrigger
+          data-empty={!value}
+          className={cn("inline-flex items-center gap-2 justify-start text-left font-normal border rounded-md px-3 py-2 text-sm bg-white shadow-xs hover:bg-accent cursor-pointer data-[empty=true]:text-muted-foreground", triggerClassName)}
+        >
+          <CalendarIcon className="size-4 shrink-0 text-muted-foreground" />
+          {showText && (
+            displayText ? <span>{displayText}</span> : (value ? format(value, formatString) : <span className="placeholder:text-base-color/50!">{placeholder}</span>)
+          )}
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0">
           <Calendar

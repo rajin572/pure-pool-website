@@ -204,15 +204,16 @@ export function ReuseTimePicker({
 
     return (
         <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger>
-                <Button variant={"outline"} className={cn("w-fit pl-3 text-left font-normal", triggerClassName, className)}>
-                    {value ? (
-                        format(value, formatString) // Only show time without date
-                    ) : (
-                        <span className="placeholder:text-base-color/50!">{placeholder}</span>
-                    )}
-                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                </Button>
+            <PopoverTrigger
+                type="button"
+                className={cn("inline-flex items-center justify-between w-fit pl-3 pr-3 py-2 text-left font-normal border rounded-md text-sm bg-white shadow-xs hover:bg-accent cursor-pointer", triggerClassName, className)}
+            >
+                {value ? (
+                    format(value, formatString) // Only show time without date
+                ) : (
+                    <span className="placeholder:text-base-color/50!">{placeholder}</span>
+                )}
+                <CalendarIcon className="ml-2 h-4 w-4 opacity-50 shrink-0" />
             </PopoverTrigger>
             <PopoverContent
                 ref={popoverContentRef}

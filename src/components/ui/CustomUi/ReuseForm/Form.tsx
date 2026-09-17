@@ -499,24 +499,22 @@ export const FormDatePicker: FormControlFunc<{
       <FormBase {...props}>
         {({ onChange, value, id, "aria-invalid": ariaInvalid }) => (
           <Popover>
-            <PopoverTrigger>
-              <button
-                id={id}
-                type="button"
-                aria-invalid={ariaInvalid}
-                className={cn(
-                  "w-full placeholder:text-base-color/50! h-9 flex items-center gap-2 px-3 py-2 text-base rounded-md border border-base-color/30 bg-primary-color shadow text-left",
-                  "focus:outline-none focus:border-base-color/70",
-                  "aria-invalid:border-destructive",
-                  !value && "text-base-color/50",
-                  triggerClassName
-                )}
-              >
-                {showIcon && (
-                  <CalendarIcon className="size-4 shrink-0 text-muted-foreground" />
-                )}
-                {showText && (value ? format(value as Date, formatString) : <span className="placeholder:text-base-color/50!">{placeholder}</span>)}
-              </button>
+            <PopoverTrigger
+              id={id}
+              type="button"
+              aria-invalid={ariaInvalid}
+              className={cn(
+                "w-full placeholder:text-base-color/50! h-9 flex items-center gap-2 px-3 py-2 text-base rounded-md border border-base-color/30 bg-primary-color shadow text-left cursor-pointer",
+                "focus:outline-none focus:border-base-color/70",
+                "aria-invalid:border-destructive",
+                !value && "text-base-color/50",
+                triggerClassName
+              )}
+            >
+              {showIcon && (
+                <CalendarIcon className="size-4 shrink-0 text-muted-foreground" />
+              )}
+              {showText && (value ? format(value as Date, formatString) : <span className="placeholder:text-base-color/50!">{placeholder}</span>)}
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
               <Calendar
