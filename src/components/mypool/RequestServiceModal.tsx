@@ -1,132 +1,269 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import ReusableModal from "@/components/ui/CustomUi/ReuseableModal";
 import ReuseableForm from "@/components/ui/CustomUi/ReuseForm/ReuseableForm";
-import {
-  FormInput,
-  FormSelect,
-  FormDatePicker,
-  FormTimePicker,
-  FormTextarea,
-} from "@/components/ui/CustomUi/ReuseForm/Form";
-import { Button } from "@/components/ui/button";
-
+import { FormSelect, FormTextarea } from "@/components/ui/CustomUi/ReuseForm/Form";
 import { SelectItem } from "@/components/ui/select";
+import ReusableGradientButton from "@/components/ui/CustomUi/ReusableGradientButton";
+import {
+  ServiceCategory,
+  UrgencyLevel,
+  createServiceRequest,
+} from "@/service/ServiceRequestService/ServiceRequestServiceApi";
+import {
+  Wrench,
+  Droplets,
+  Sparkles,
+  AlertTriangle,
+  HelpCircle,
+  UploadCloud,
+  CheckCircle2,
+} from "lucide-react";
 
 interface RequestServiceModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultServiceTitle?: string;
+  defaultCategory?: ServiceCategory;
+  onRequestCreated?: () => void;
 }
 
 interface ServiceFormValues {
-  serviceTitle: string;
-  serviceCategory: string;
-  preferredDate: Date;
-  preferredTime: Date | undefined;
-  notes: string;
+  poolName: string;
+  category: ServiceCategory;
+  urgency: UrgencyLevel;
+  description: string;
 }
 
-const SERVICE_CATEGORIES = [
-  { label: "Heat Pump & Heating Inspection", value: "heat_pump" },
-  { label: "Filter Sand / Glass Replacement", value: "filter_media" },
-  { label: "Salt Cell Cleaning / Diagnostic", value: "salt_chlorinator" },
-  { label: "Lighting & Electrical Repair", value: "lighting" },
-  { label: "Emergency Chemical Shock Treatment", value: "emergency_shock" },
-];
+const ISSUE_OPTIONS: {
+  id: ServiceCategory;
+  title: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+}[] = [
+    {
+      id: "equipment_breakdown",
+      title: "Equipment breakdown",
+      description: "Pump not priming, strange noise, chlorinator error code",
+      icon: Wrench,
+    },
+    {
+      id: "water_quality",
+      title: "Water quality issue",
+      description: "Cloudy, green tint, foaming, chlorine smell",
+      icon: Droplets,
+    },
+    {
+      id: "special_cleaning",
+      title: "Special cleaning / pre-event",
+      description: "Extra vacuuming, party prep, post-storm leaf removal",
+      icon: Sparkles,
+    },
+    {
+      id: "emergency_leak",
+      title: "Emergency leak or flood",
+      description: "Pipe burst, rapid water loss, electrical spark",
+      icon: AlertTriangle,
+    },
+    {
+      id: "general_inquiry",
+      title: "General inquiry / inspection",
+      description: "Seasonal winterize, automation setup, heating check",
+      icon: HelpCircle,
+    },
+  ];
 
 export const RequestServiceModal: React.FC<RequestServiceModalProps> = ({
   open,
   onOpenChange,
-  defaultServiceTitle = "Heat pump inspection before summer peak season",
+  defaultCategory = "equipment_breakdown",
+  onRequestCreated,
 }) => {
+  const [selectedCategory, setSelectedCategory] = useState<ServiceCategory>(defaultCategory);
+  const [selectedUrgency, setSelectedUrgency] = useState<UrgencyLevel>("Normal");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+
   const form = useForm<ServiceFormValues>({
     defaultValues: {
-      serviceTitle: defaultServiceTitle,
-      serviceCategory: "heat_pump",
-      preferredDate: new Date(),
-      preferredTime: new Date(),
-      notes: "",
+      poolName: "Main Residence Pool",
+      category: defaultCategory,
+      urgency: "Normal",
+      description: "",
     },
   });
 
-  const handleSubmit = (data: ServiceFormValues) => {
-    // Design phase only — as requested, ready for RTK Query mutation when backend is wired
-    console.log("Service Request Submitted:", data);
-    alert("Service request logged! When backend is wired, RTK Query mutation triggers here.");
-    onOpenChange(false);
+  const handleSubmit = async (data: ServiceFormValues) => {
+    setIsSubmitting(true);
+    try {
+      const res = await createServiceRequest({
+        poolName: data.poolName || "Main Residence Pool",
+        category: selectedCategory,
+        urgency: selectedUrgency,
+        description: data.description,
+      });
+
+      if (res.success) {
+        setIsSubmitted(true);
+        setTimeout(() => {
+          setIsSubmitted(false);
+          setIsSubmitting(false);
+          onOpenChange(false);
+          if (onRequestCreated) onRequestCreated();
+        }, 1500);
+      } else {
+        setIsSubmitting(false);
+      }
+    } catch {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <ReusableModal
       open={open}
       onOpenChange={onOpenChange}
-      title="Request Maintenance Service"
-      description="Book a certified technician visit for specialized repairs or routine equipment checks."
-      maxWidth="sm:max-w-xl md:max-w-2xl"
+      title="Request Service or Report an Issue"
+      description="Our Madrid certified technician team will review and assign a specialist within 2 hours"
+      maxWidth="sm:max-w-2xl md:max-w-3xl"
     >
       <ReuseableForm
         form={form}
         onSubmit={handleSubmit}
-        className="flex flex-col gap-4 mt-2"
+        className="flex flex-col gap-6 text-gray-900 pb-2"
       >
-        <FormInput
-          control={form.control}
-          name="serviceTitle"
-          label="Service Title / Description"
-          placeholder="e.g. Heat pump diagnostic check"
-        />
-
-        <FormSelect
-          control={form.control}
-          name="serviceCategory"
-          label="Service Category"
-          placeholder="Select a category"
-        >
-          {SERVICE_CATEGORIES.map((cat) => (
-            <SelectItem key={cat.value} value={cat.value}>
-              {cat.label}
-            </SelectItem>
-          ))}
-        </FormSelect>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <FormDatePicker
+        {/* Pool Selector */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-bold text-gray-900">Select Pool</label>
+          <FormSelect
             control={form.control}
-            name="preferredDate"
-            label="Preferred Visit Date"
-            placeholder="Select date"
-          />
+            name="poolName"
+            placeholder="Select Pool"
+          >
+            <SelectItem value="Main Residence Pool">Main Residence Pool (Alcalá 125)</SelectItem>
+            <SelectItem value="Garden Pool">Garden Pool</SelectItem>
+            <SelectItem value="Paseo de la Habana Pool">Paseo de la Habana Pool</SelectItem>
+          </FormSelect>
+        </div>
 
-          <FormTimePicker
+        {/* Issue Type Selector Cards */}
+        <div className="flex flex-col gap-3">
+          <label className="text-sm font-bold text-gray-900">
+            What type of issue are you experiencing?
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {ISSUE_OPTIONS.map((opt) => {
+              const isSelected = selectedCategory === opt.id;
+              const Icon = opt.icon;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedCategory(opt.id);
+                    form.setValue("category", opt.id);
+                  }}
+                  className={`p-3.5 rounded-xl border text-left flex items-start gap-3 transition-all duration-200 cursor-pointer ${isSelected
+                      ? "bg-sky-50/80 border-sky-500 ring-2 ring-sky-500/20"
+                      : "bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50/50"
+                    } ${opt.id === "general_inquiry" ? "sm:col-span-2" : ""}`}
+                >
+                  <div
+                    className={`p-2 rounded-lg shrink-0 mt-0.5 ${isSelected ? "bg-sky-600 text-white" : "bg-gray-100 text-gray-600"
+                      }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-bold text-gray-900">{opt.title}</span>
+                    <span className="text-xs text-gray-500 mt-0.5 leading-snug">
+                      {opt.description}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Urgency Level Selector */}
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-bold text-gray-900">Urgency</label>
+          <div className="grid grid-cols-3 gap-3 p-1 bg-gray-100 rounded-xl border border-gray-200">
+            {(["Normal", "High", "Urgent"] as const).map((urgency) => {
+              const isSelected = selectedUrgency === urgency;
+              return (
+                <button
+                  key={urgency}
+                  type="button"
+                  onClick={() => {
+                    setSelectedUrgency(urgency);
+                    form.setValue("urgency", urgency);
+                  }}
+                  className={`py-2 rounded-lg text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer ${isSelected
+                      ? urgency === "Urgent"
+                        ? "bg-red-600 text-white shadow-xs"
+                        : urgency === "High"
+                          ? "bg-amber-600 text-white shadow-xs"
+                          : "bg-white text-gray-900 shadow-xs border border-gray-200/60"
+                      : "text-gray-600 hover:text-gray-900"
+                    }`}
+                >
+                  {urgency}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Description Input */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-bold text-gray-900">Description</label>
+          <FormTextarea
             control={form.control}
-            name="preferredTime"
-            label="Preferred Time Window"
-            placeholder="e.g. 10:00"
+            name="description"
+            placeholder="e.g. Water is slightly cloudy since yesterday after a heavy rain shower. The pump is running but chlorine reads 0.4 on our dip strip."
+            rows={4}
           />
         </div>
 
-        <FormTextarea
-          control={form.control}
-          name="notes"
-          label="Special Instructions / Access Notes"
-          placeholder="Enter gate codes, equipment location details, or specific symptoms..."
-          rows={3}
-        />
+        {/* Upload Photos Dropzone */}
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-bold text-gray-900">
+            Upload Photos <span className="text-xs font-normal text-gray-400">(Optional)</span>
+          </label>
+          <div className="border-2 border-dashed border-gray-200 hover:border-sky-400 rounded-xl p-6 flex flex-col items-center justify-center gap-2 text-center bg-gray-50/50 hover:bg-sky-50/20 transition-all cursor-pointer">
+            <UploadCloud className="w-8 h-8 text-sky-500" />
+            <div className="flex flex-col">
+              <span className="text-sm font-medium text-gray-700">
+                Upload images here or click to browse
+              </span>
+              <span className="text-xs text-gray-400 mt-0.5">
+                PNG, JPG, WEBP up to 5MB each
+              </span>
+            </div>
+          </div>
+        </div>
 
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 mt-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-          >
-            Cancel
-          </Button>
-          <Button type="submit" className="bg-sky-600 hover:bg-sky-700 text-white font-semibold">
-            Submit Request
-          </Button>
+        {/* Action Button */}
+        <div className="pt-2">
+          {isSubmitted ? (
+            <div className="w-full py-4 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-700 flex items-center justify-center gap-2 font-bold text-sm">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+              Service request submitted successfully!
+            </div>
+          ) : (
+            <ReusableGradientButton
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full h-12 text-base font-bold flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Wrench className="w-5 h-5" />
+              {isSubmitting ? "Submitting Ticket..." : "Submit"}
+            </ReusableGradientButton>
+          )}
         </div>
       </ReuseableForm>
     </ReusableModal>

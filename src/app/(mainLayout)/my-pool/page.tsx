@@ -138,13 +138,13 @@ export default async function MyPoolPage({ searchParams }: MyPoolPageProps) {
       />
 
       <Suspense
-        fallback={
-          <div className="w-full py-24 flex items-center justify-center text-gray-500 font-medium">
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-8 h-8 border-3 border-sky-600 border-t-transparent rounded-full animate-spin" />
-              <p className="text-sm">Loading pool telemetry and records...</p>
-            </div>
-          </div>
+        fallback={<></>
+          // <div className="w-full py-24 flex items-center justify-center text-gray-500 font-medium">
+          //   <div className="flex flex-col items-center gap-3">
+          //     <div className="w-8 h-8 border-3 border-sky-600 border-t-transparent rounded-full animate-spin" />
+          //     <p className="text-sm">Loading pool telemetry and records...</p>
+          //   </div>
+          // </div>
         }
       >
         <MyPoolClientWrapper
