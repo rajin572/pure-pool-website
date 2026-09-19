@@ -125,7 +125,7 @@ const ReusableTable = <T,>({
                                             style={{
                                                 width: formatWidth(column.width),
                                                 minWidth: scroll ? formatWidth(column.width) : undefined,
-                                                maxWidth: window.innerWidth >= 768 && !scroll ? formatWidth(column.width) : undefined,
+                                                maxWidth: typeof window !== "undefined" && window.innerWidth >= 768 && !scroll ? formatWidth(column.width) : undefined,
                                                 position: column.fixed ? 'sticky' : 'static',
                                                 left: column.fixed ? 0 : 'auto',
                                                 backgroundColor: column.fixed ? 'white' : undefined,

@@ -171,9 +171,14 @@ const Navbar = () => {
     const [isLoggingOut, startLogout] = useTransition();
 
     // const user = useUserData();
+    const user = {
+        fullName: "Roberto Vidal",
+        email: "roberto@purepool.es",
+        isSuscribed: true,
+    };
     // TODO: wire up real auth. Hardcoded to null (logged-out) so anonymous visitors and
     // search crawlers see the public marketing nav instead of a fake account menu.
-    const user = null as { fullName: string; email: string; isSuscribed: boolean } | null;
+    // const user = null as { fullName: string; email: string; isSuscribed: boolean } | null;
     const navItems = user ? LOGGED_IN_NAV_ITEMS : LOGGED_OUT_NAV_ITEMS;
 
     const handleLogout = () => {
