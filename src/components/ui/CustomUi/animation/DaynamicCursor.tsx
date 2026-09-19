@@ -1,7 +1,6 @@
 "use client";
 import { gsap } from "@/lib/gsap-util";
 import { useEffect, useRef } from "react";
-import CircularBadge from "@/components/Home/CircleBadge";
 
 const DaynamicCursor = () => {
     const cursorRef = useRef<HTMLDivElement>(null);

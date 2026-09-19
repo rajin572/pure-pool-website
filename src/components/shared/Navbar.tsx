@@ -451,7 +451,7 @@ const Navbar = () => {
                                 >
                                     Log In
                                 </Link>
-                                <ReusableGradientButton type="redirect" href="/register" size="lg" >
+                                <ReusableGradientButton type="redirect" href="/register" size="lg" className="text-xs xl:text-base px-3 py-1">
                                     Register
                                 </ReusableGradientButton>
                             </div>
