@@ -227,7 +227,6 @@ export const PurePoolAppSection: React.FC = () => {
                 fill
                 sizes="(max-width: 1024px) 100vw, 40vw"
                 className="object-contain drop-shadow-2xl hover:scale-102 transition-transform duration-500"
-                priority
               />
             </div>
           </div>

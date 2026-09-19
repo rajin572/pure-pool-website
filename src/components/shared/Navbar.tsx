@@ -45,8 +45,6 @@ export interface NavItem {
 export const LOGGED_OUT_NAV_ITEMS: NavItem[] = [
     { id: "1", name: "Home", route: "/" },
     { id: "2", name: "About Us", route: "/about-us" },
-    { id: "3", name: "Services", route: "/services" },
-    { id: "4", name: "Pricing", route: "/pricing" },
     { id: "5", name: "Contact Us", route: "/contact" },
 ];
 
@@ -173,11 +171,9 @@ const Navbar = () => {
     const [isLoggingOut, startLogout] = useTransition();
 
     // const user = useUserData();
-    const user = {
-        fullName: "Test",
-        email: "test@test.com",
-        isSuscribed: true,
-    };
+    // TODO: wire up real auth. Hardcoded to null (logged-out) so anonymous visitors and
+    // search crawlers see the public marketing nav instead of a fake account menu.
+    const user = null as { fullName: string; email: string; isSuscribed: boolean } | null;
     const navItems = user ? LOGGED_IN_NAV_ITEMS : LOGGED_OUT_NAV_ITEMS;
 
     const handleLogout = () => {
@@ -249,12 +245,11 @@ const Navbar = () => {
                     <Link href="/" className="flex items-center shrink-0">
                         <Image
                             src={scrolled ? AllImages.logo : AllImages.logoSecondary}
-                            alt="Logo"
+                            alt="Pure Pool"
                             width={240}
                             height={60}
                             className="w-auto h-9 sm:h-10 xl:h-12 transition-all duration-300 object-contain"
-                            fetchPriority="high"
-                            preload={true}
+                            preload
                         />
                     </Link>
 
@@ -265,7 +260,7 @@ const Navbar = () => {
                                 <li key={navItem.id} className="flex items-center">
                                     <Link
                                         href={navItem.route}
-                                        className={`px-2 xl:px-3 py-1.5 rounded-lg text-xs xl:text-sm font-medium tracking-normal xl:tracking-wide whitespace-nowrap shrink-0 transition-all duration-200 ${path === navItem.route
+                                        className={`px-2 xl:px-3 py-1.5 rounded-lg text-xs xl:text-base  font-medium tracking-normal xl:tracking-wide whitespace-nowrap shrink-0 transition-all duration-200 ${path === navItem.route
                                             ? "text-secondary-color bg-secondary-color/10 font-semibold"
                                             : scrolled
                                                 ? "text-slate-700 hover:text-secondary-color hover:bg-slate-100/80"
@@ -451,12 +446,12 @@ const Navbar = () => {
                             <div className="hidden lg:flex items-center gap-2.5 xl:gap-5 shrink-0">
                                 <Link
                                     href="/login"
-                                    className={`text-xs xl:text-sm font-medium hover:text-secondary-color transition-colors duration-200 whitespace-nowrap ${scrolled ? "text-lighter-color" : "text-primary-color/80"
+                                    className={`text-xs xl:text-base font-medium hover:text-secondary-color transition-colors duration-200 whitespace-nowrap ${scrolled ? "text-lighter-color" : "text-primary-color/80"
                                         }`}
                                 >
                                     Log In
                                 </Link>
-                                <ReusableGradientButton type="redirect" href="/register" size="sm" className="text-xs xl:text-sm px-3 py-1">
+                                <ReusableGradientButton type="redirect" href="/register" size="lg" >
                                     Register
                                 </ReusableGradientButton>
                             </div>

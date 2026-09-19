@@ -69,7 +69,6 @@ const Footer = () => {
                                 width={240}
                                 height={80}
                                 className="h-16 sm:h-18 w-auto object-contain"
-                                priority
                             />
                         </Link>
                         <p className="text-sm leading-relaxed text-primary-color/85 max-w-sm">

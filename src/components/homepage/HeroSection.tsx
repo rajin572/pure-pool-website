@@ -98,7 +98,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onOpenQuoteModal }) =>
           src={AllImages.heroBackground}
           alt="Luxury swimming pool maintained by Pure Pool Madrid"
           fill
-          priority
+          preload
           sizes="100vw"
           className="object-cover object-center"
         />
