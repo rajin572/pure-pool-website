@@ -80,7 +80,7 @@ export const QuoteRequestModal: React.FC<QuoteRequestModalProps> = ({
     }
   }, [defaultPlan, form]);
 
-  const onSubmit = async (_values: QuoteFormValues) => {
+  const onSubmit = async () => {
     // =====================================================================
     // POST request example:
     // try {

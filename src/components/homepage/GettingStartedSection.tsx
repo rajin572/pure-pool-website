@@ -3,7 +3,7 @@
 import React, { useRef } from "react";
 import Container from "@/components/ui/CustomUi/Container";
 import SectionHeading from "@/components/ui/CustomUi/SectionHeading";
-import { gsap, ScrollTrigger, useGSAP, prefersReducedMotion } from "@/lib/gsap-util";
+import { gsap, useGSAP, prefersReducedMotion } from "@/lib/gsap-util";
 
 interface StepItem {
   number: string;

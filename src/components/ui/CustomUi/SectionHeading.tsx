@@ -2,7 +2,7 @@
 
 import React, { useRef } from "react";
 import { cn } from "@/lib/utils";
-import { gsap, ScrollTrigger, SplitText, useGSAP, prefersReducedMotion } from "@/lib/gsap-util";
+import { gsap, SplitText, useGSAP, prefersReducedMotion } from "@/lib/gsap-util";
 
 export interface SectionHeadingProps {
   /**

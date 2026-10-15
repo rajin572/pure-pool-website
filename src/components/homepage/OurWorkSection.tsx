@@ -7,7 +7,7 @@ import SectionHeading from "@/components/ui/CustomUi/SectionHeading";
 import { AllImages } from "../../../public/images/AllImages";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
-import { gsap, ScrollTrigger, useGSAP, prefersReducedMotion, hasFinePointer } from "@/lib/gsap-util";
+import { gsap, useGSAP, prefersReducedMotion, hasFinePointer } from "@/lib/gsap-util";
 
 export const OurWorkSection: React.FC = () => {
   const sectionRef = useRef<HTMLElement>(null);

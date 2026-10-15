@@ -2,7 +2,7 @@
 
 import React from "react";
 import { ServiceRequestRecord } from "@/service/ServiceRequestService/ServiceRequestServiceApi";
-import { Calendar, User, Clock, AlertCircle } from "lucide-react";
+import { Calendar, User, Clock } from "lucide-react";
 
 interface ServiceRequestCardProps {
   request: ServiceRequestRecord;

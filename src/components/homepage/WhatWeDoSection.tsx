@@ -4,7 +4,7 @@ import React, { useRef } from "react";
 import Container from "@/components/ui/CustomUi/Container";
 import SectionHeading from "@/components/ui/CustomUi/SectionHeading";
 import { Waves, Wrench, PlusCircle, AlertCircle } from "lucide-react";
-import { gsap, ScrollTrigger, useGSAP, prefersReducedMotion } from "@/lib/gsap-util";
+import { gsap, useGSAP, prefersReducedMotion } from "@/lib/gsap-util";
 import { useSpotlight } from "@/lib/useSpotlight";
 
 interface ServiceCard {

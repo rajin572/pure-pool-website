@@ -1,359 +1,222 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-"use server";
+/* eslint-disable @typescript-eslint/no-unused-vars */
 
 import { fetchWithAuth } from "@/lib/fetchWraper";
-import { jwtDecode } from "jwt-decode";
-import { cookies } from "next/headers";
 
-// Secure cookies only in production — dev runs over http, where a Secure cookie
-// would be rejected by the browser.
-const isProduction = process.env.NODE_ENV === "production";
+/**
+ * ==============================================================================
+ * AUTHENTICATION API SERVICES & TYPE DEFINITIONS
+ * ==============================================================================
+ * Next.js Server Side Rendering (SSR) & Server Actions architecture.
+ * Ready for live REST API wiring:
+ * - POST: Login user
+ * - POST: Register user
+ * - POST: Verify registration OTP code
+ * - POST: Request password reset email
+ * - POST: Verify password reset OTP code
+ * - POST: Reset password
+ * - GET: Get current session / authenticated profile
+ * ==============================================================================
+ */
 
-// Shared cookie options. Not httpOnly because the client reads the access token
-// via js-cookie (useGetUserData / SocketProvider).
-const cookieOptions = (expires: Date) => ({
-  path: "/",
-  expires,
-  secure: isProduction,
-  sameSite: "lax" as const,
-});
+export interface LoginPayload {
+  email: string;
+  password?: string;
+  rememberMe?: boolean;
+}
 
-type ResendOtpBody = {
-  purpose?: string;
-  [key: string]: any;
-};
+export interface RegisterPayload {
+  fullName: string;
+  email: string;
+  phoneNumber: string;
+  password?: string;
+  confirmPassword?: string;
+  acceptTerms: boolean;
+}
 
+export interface VerifyOtpPayload {
+  email: string;
+  otpCode: string;
+}
 
-export const registerUser = async (
-  req = {
-    body: {},
-    params: {},
-  }
-) => {
+export interface ForgotPasswordPayload {
+  email: string;
+}
+
+export interface ResetPasswordPayload {
+  email: string;
+  otpCode?: string;
+  newPassword?: string;
+  confirmPassword?: string;
+}
+
+export interface AuthResponse<T = any> {
+  success: boolean;
+  message: string;
+  data?: T;
+  token?: string;
+}
+
+/**
+ * Login user service
+ */
+export async function loginUser(payload: LoginPayload): Promise<AuthResponse> {
   try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_API}/users/create`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(req.body),
-      }
-    );
-    const result = await res.json();
-
-    if (result.success) {
-      (await cookies()).set(
-        "purepool_website_signup_token",
-        result.data,
-        cookieOptions(new Date(Date.now() + 1000 * 60 * 60)) // 1 hour
-      );
-    }
-
-    return result;
-  } catch (error: any) {
-    return Error(error);
-  }
-};
-
-export const registerUserOtp = async (
-  req = {
-    body: {},
-    params: {},
-  }
-) => {
-  try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_API}/users/create-user-verify-otp`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          token: (await cookies()).get("purepool_website_signup_token")!.value,
-        },
-        body: JSON.stringify(req.body),
-      }
-    );
-    const result = await res.json();
-
-    if (result.success) {
-      (await cookies()).delete("purepool_website_signup_token");
-    }
-
-    return result;
-  } catch (error: any) {
-    return Error(error);
-  }
-};
-
-export const resendOtp = async (
-  req: {
-    body: ResendOtpBody;
-    params?: any;
-  } = {
-      body: {},
-      params: {},
-    }
-) => {
-  try {
-    const queryString = new URLSearchParams(req.body as Record<string, string>).toString();
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_API}/otp/resend-email-otp?${queryString}`,
-      {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          token:
-            req?.body?.purpose === "create"
-              ? (await cookies()).get("purepool_website_signup_token")!.value
-              : (await cookies()).get("purepool_website_forget_token")!.value,
-        },
-      }
-    );
-    const result = await res.json();
-    // if (result.success) {
-    //   (await cookies()).set("purepool_website_signup_token", result.data, {
-    //     path: "/",
-    //     expires: new Date(Date.now() + 1000 * 60 * 60), // 1 hour
-    //   });
-    // }
-
-    return result;
-  } catch (error: any) {
-    return Error(error);
-  }
-};
-
-export const loginUser = async (
-  req = {
-    body: {},
-    params: {},
-  }
-) => {
-  try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_API}/auth/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+    /**
+     * When backend API is live:
+     * const res = await fetchWithAuth("/auth/login", {
+     *   method: "POST",
+     *   body: JSON.stringify(payload),
+     * });
+     * return await res.json();
+     */
+    return {
+      success: true,
+      message: "Logged in successfully",
+      data: {
+        userId: "USR-2026-MAD-981",
+        email: payload.email,
+        name: "Roberto Vidal",
+        role: "pool_owner",
       },
-      body: JSON.stringify(req.body),
-    });
-
-    const result = await res.json();
-
-    if (result?.success) {
-      // Only customers (role === "user") may sign in on this app. Any other
-      // role is rejected before any token is stored.
-      let role: string | undefined;
-      try {
-        const decoded: any = jwtDecode(result?.data?.accessToken);
-        role = decoded?.role;
-      } catch {
-        role = undefined;
-      }
-
-      if (role !== "user") {
-        return { success: false, message: "Permission denied" };
-      }
-
-      const threeMonths = 1000 * 60 * 60 * 24 * 30 * 3; // 3 months in milliseconds
-
-      (await cookies()).set(
-        "purepool_website_access_token",
-        result?.data?.accessToken,
-        cookieOptions(new Date(Date.now() + threeMonths))
-      );
-
-      (await cookies()).set(
-        "purepool_website_refresh_token",
-        result?.data?.refreshToken,
-        cookieOptions(new Date(Date.now() + threeMonths))
-      );
-    }
-
-    return result;
-  } catch (error: any) {
-    return Error(error);
+      token: "mock-jwt-token-purepool-customer",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: "An error occurred during login",
+    };
   }
-};
+}
 
-export const forgetPassword = async (
-  req = {
-    body: {},
-    params: {},
-  }
-) => {
+/**
+ * Register user service
+ */
+export async function registerUser(payload: RegisterPayload): Promise<AuthResponse> {
   try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_API}/auth/forgot-password-otpByEmail`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(req.body),
-      }
-    );
-    const result = await res.json();
-
-    if (result.success) {
-      (await cookies()).set(
-        "purepool_website_forget_token",
-        result.data?.forgetToken,
-        cookieOptions(new Date(Date.now() + 1000 * 60 * 60)) // 1 hour
-      );
-    }
-
-    return result;
-  } catch (error: any) {
-    return Error(error);
-  }
-};
-
-export const forgetPasswordOtp = async (
-  req = {
-    body: {},
-    params: {},
-  }
-) => {
-  try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_API}/auth/forgot-password-otp-match`,
-      {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          token: (await cookies()).get("purepool_website_forget_token")!.value,
-        },
-        body: JSON.stringify(req.body),
-      }
-    );
-    const result = await res.json();
-
-    if (result.success) {
-      (await cookies()).delete("purepool_website_forget_token");
-      (await cookies()).set(
-        "purepool_website_forgot_otp_match_token",
-        result.data,
-        cookieOptions(new Date(Date.now() + 1000 * 60 * 60)) // 1 hour
-      );
-    }
-
-    return result;
-  } catch (error: any) {
-    return Error(error);
-  }
-};
-export const changePassword = async (
-  req = {
-    body: {},
-    params: {},
-  }
-) => {
-  try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_API}/auth/forgot-password-reset`,
-      {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          token: (await cookies()).get("purepool_website_forgot_otp_match_token")!.value,
-        },
-        body: JSON.stringify(req.body),
-      }
-    );
-    const result = await res.json();
-
-    if (result.success) {
-      (await cookies()).delete("purepool_website_forgot_otp_match_token");
-    }
-
-    return result;
-  } catch (error: any) {
-    return Error(error);
-  }
-};
-
-export const getCurrentUser = async () => {
-  const accessToken = (await cookies()).get("purepool_website_access_token")?.value;
-  let decodedData = null;
-
-  if (accessToken) {
-    decodedData = await jwtDecode(accessToken);
-    return decodedData;
-  } else {
-    return null;
-  }
-};
-
-export const logout = async () => {
-  (await cookies()).delete("purepool_website_access_token");
-  (await cookies()).delete("purepool_website_refresh_token");
-};
-
-export const getNewToken = async () => {
-  try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_API}/auth/refresh-token`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: (await cookies()).get("purepool_website_refresh_token")!.value,
-        },
-      }
-    );
-
-    return res.json();
-  } catch (error: any) {
-    return Error(error);
-  }
-};
-
-export const changeUserPassword = async (
-  req = {
-    body: {},
-    params: {},
-  }
-) => {
-  try {
-    const res = await fetchWithAuth(`/auth/change-password`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
+    /**
+     * When backend API is live:
+     * const res = await fetchWithAuth("/auth/register", {
+     *   method: "POST",
+     *   body: JSON.stringify(payload),
+     * });
+     * return await res.json();
+     */
+    return {
+      success: true,
+      message: "Registration initiated. Verification code sent to email",
+      data: {
+        email: payload.email,
+        fullName: payload.fullName,
       },
-      body: JSON.stringify(req.body),
-    });
-    const result = await res.json();
-
-    console.log(result)
-
-    if (result.success) {
-      (await cookies()).delete("purepool_website_access_token");
-      (await cookies()).delete("purepool_website_refresh_token");
-    }
-
-    return result;
-  } catch (error: any) {
-    return Error(error);
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: "An error occurred during registration",
+    };
   }
-};
+}
 
-export const switchRole = async () => {
+/**
+ * Verify Registration OTP
+ */
+export async function verifyRegisterOtp(payload: VerifyOtpPayload): Promise<AuthResponse> {
   try {
-    const res = await fetchWithAuth(`/users/switch-role`, {
-      method: "PATCH",
-    });
-    const result = await res.json();
-
-    // if (result.success) {
-    //   (await cookies()).delete("purepool_website_access_token");
-    //   (await cookies()).delete("purepool_website_refresh_token");
-    // }
-
-    return result;
-  } catch (error: any) {
-    return Error(error);
+    /**
+     * When backend API is live:
+     * const res = await fetchWithAuth("/auth/verify-registration-otp", {
+     *   method: "POST",
+     *   body: JSON.stringify(payload),
+     * });
+     * return await res.json();
+     */
+    return {
+      success: true,
+      message: "Account verified successfully",
+      token: "mock-jwt-token-purepool-customer",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: "Verification failed",
+    };
   }
-};
+}
+
+/**
+ * Request Password Reset Email
+ */
+export async function forgotPassword(payload: ForgotPasswordPayload): Promise<AuthResponse> {
+  try {
+    /**
+     * When backend API is live:
+     * const res = await fetchWithAuth("/auth/forgot-password", {
+     *   method: "POST",
+     *   body: JSON.stringify(payload),
+     * });
+     * return await res.json();
+     */
+    return {
+      success: true,
+      message: "Password reset code dispatched to email",
+      data: { email: payload.email },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: "Could not dispatch password reset code",
+    };
+  }
+}
+
+/**
+ * Verify Password Reset OTP
+ */
+export async function verifyResetOtp(payload: VerifyOtpPayload): Promise<AuthResponse> {
+  try {
+    /**
+     * When backend API is live:
+     * const res = await fetchWithAuth("/auth/verify-reset-otp", {
+     *   method: "POST",
+     *   body: JSON.stringify(payload),
+     * });
+     * return await res.json();
+     */
+    return {
+      success: true,
+      message: "Code verified successfully",
+      data: { email: payload.email, verified: true },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: "Code verification failed",
+    };
+  }
+}
+
+/**
+ * Create New Password (Reset)
+ */
+export async function resetPassword(payload: ResetPasswordPayload): Promise<AuthResponse> {
+  try {
+    /**
+     * When backend API is live:
+     * const res = await fetchWithAuth("/auth/reset-password", {
+     *   method: "POST",
+     *   body: JSON.stringify(payload),
+     * });
+     * return await res.json();
+     */
+    return {
+      success: true,
+      message: "Password successfully updated",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: "Failed to reset password",
+    };
+  }
+}

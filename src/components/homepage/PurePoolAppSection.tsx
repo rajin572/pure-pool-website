@@ -8,7 +8,7 @@ import DownloadModal from "@/components/ui/CustomUi/Modal/DownloadModal";
 import { AllImages } from "../../../public/images/AllImages";
 import { Camera, Activity, CreditCard, FileText } from "lucide-react";
 import { FaApple, FaGooglePlay } from "react-icons/fa6";
-import { gsap, ScrollTrigger, useGSAP, prefersReducedMotion } from "@/lib/gsap-util";
+import { gsap, useGSAP, prefersReducedMotion } from "@/lib/gsap-util";
 import { useMagnetic } from "@/lib/useMagnetic";
 
 interface AppFeature {

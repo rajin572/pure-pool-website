@@ -53,10 +53,13 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
       console.error(`Connection error: ${error.message}`)
     );
 
-    setSocket(socketInstance);
+    queueMicrotask(() => {
+      setSocket(socketInstance);
+    });
 
     return () => {
       socketInstance.disconnect();
+      setSocket(null);
     };
   }, [token]);
 

@@ -73,6 +73,7 @@ const ReusableGradientButton = (props: ReusableGradientButtonProps) => {
             gradientFrom = "from-sky-500",
             gradientTo = "to-blue-600",
             className,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             type: _type,
             href,
             target,

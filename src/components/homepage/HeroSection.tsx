@@ -6,7 +6,7 @@ import Container from "@/components/ui/CustomUi/Container";
 import SectionHeading from "@/components/ui/CustomUi/SectionHeading";
 import ReusableGradientButton from "@/components/ui/CustomUi/ReusableGradientButton";
 import { AllImages } from "../../../public/images/AllImages";
-import { gsap, ScrollTrigger, useGSAP, prefersReducedMotion } from "@/lib/gsap-util";
+import { gsap, useGSAP, prefersReducedMotion } from "@/lib/gsap-util";
 
 interface HeroSectionProps {
   onOpenQuoteModal?: () => void;

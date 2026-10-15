@@ -176,6 +176,7 @@ const Navbar = () => {
         email: "roberto@purepool.es",
         isSuscribed: true,
     };
+    // const user = null;
     // TODO: wire up real auth. Hardcoded to null (logged-out) so anonymous visitors and
     // search crawlers see the public marketing nav instead of a fake account menu.
     // const user = null as { fullName: string; email: string; isSuscribed: boolean } | null;
@@ -373,7 +374,7 @@ const Navbar = () => {
                                         </div>
 
                                         {/* Menu Items List */}
-                                        <div className="p-1.5 flex flex-col gap-0.5 max-h-[340px] overflow-y-auto scrollbar-none">
+                                        {/* <div className="p-1.5 flex flex-col gap-0.5 max-h-[340px] overflow-y-auto scrollbar-none">
                                             {DROPDOWN_MENU_SECTIONS.map((section, sIndex) => (
                                                 <div key={section.id} className="flex flex-col gap-0.5">
                                                     {section.title && (
@@ -417,7 +418,7 @@ const Navbar = () => {
                                                     )}
                                                 </div>
                                             ))}
-                                        </div>
+                                        </div> */}
 
                                         {/* Logout Section */}
                                         <div className="p-1.5 border-t border-slate-100 bg-slate-50/60">

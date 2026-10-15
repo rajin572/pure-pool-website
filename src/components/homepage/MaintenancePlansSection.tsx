@@ -5,7 +5,7 @@ import Container from "@/components/ui/CustomUi/Container";
 import SectionHeading from "@/components/ui/CustomUi/SectionHeading";
 import ReusableGradientButton from "@/components/ui/CustomUi/ReusableGradientButton";
 import { Check } from "lucide-react";
-import { gsap, ScrollTrigger, useGSAP, prefersReducedMotion } from "@/lib/gsap-util";
+import { gsap, useGSAP, prefersReducedMotion } from "@/lib/gsap-util";
 
 interface PlanItem {
   id: string;
