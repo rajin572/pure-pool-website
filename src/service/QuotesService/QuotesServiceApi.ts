@@ -24,6 +24,14 @@ export interface QuoteItem {
   amount: string;
 }
 
+export interface QuoteTechnician {
+  name: string;
+  initials: string;
+  role: string;
+  date?: string;
+  location?: string;
+}
+
 export interface QuoteRecord {
   id: string;
   reference: string;
@@ -38,6 +46,13 @@ export interface QuoteRecord {
   vatAmount?: string;
   vatRate?: string;
   notes?: string;
+  technician?: QuoteTechnician;
+  photos?: string[];
+  acceptedDate?: string;
+  scheduledDate?: string;
+  scheduledTechnician?: string;
+  declinedDate?: string;
+  declinedReason?: string;
 }
 
 export interface QuotesFilterParams {
@@ -49,9 +64,58 @@ export interface QuotesFilterParams {
 
 /**
  * MOCK QUOTES RECORDS
- * Matches Figma Node 40014298:7560
+ * Matches Figma Node 40014298:7560 and 40014999:12285
  */
 export const MOCK_QUOTE_RECORDS: QuoteRecord[] = [
+  {
+    id: "QT-2026-0089",
+    reference: "QT-2026-0089",
+    forService: "Pump replacement",
+    poolName: "Main Residence Pool",
+    sentDate: "12 May 2026",
+    validUntil: "26 May 2026",
+    amount: "€411.40",
+    status: "Pending Review",
+    subtotal: "€340.00",
+    vatAmount: "€71.40",
+    vatRate: "21%",
+    notes:
+      "“The motor bearing has failed. It's still running but will seize within a few weeks. Replacing it now avoids an emergency callout and the extra charge that comes with one.”",
+    technician: {
+      name: "Álvaro Ruiz",
+      initials: "AR",
+      role: "Senior technician",
+      date: "12 May 2026, 10:24",
+      location: "Madrid",
+    },
+    photos: [
+      "/images/homepage/pool1.jpg",
+      "/images/homepage/pool2.jpg",
+      "/images/homepage/pool3.jpg",
+    ],
+    acceptedDate: "15 May 2026",
+    scheduledDate: "Thursday 22 May, 09:00 – 11:00",
+    scheduledTechnician: "Álvaro Ruiz",
+    declinedDate: "15 May 2026",
+    declinedReason: "Getting another quote",
+    items: [
+      {
+        name: "AstralPool Victoria Plus pump",
+        description: "1.5 HP high-efficiency quiet variable circulation pump",
+        amount: "€240.00",
+      },
+      {
+        name: "Labour (2 hours)",
+        description: "Certified plumbing and electrical connection with pressure testing",
+        amount: "€80.00",
+      },
+      {
+        name: "Disposal of old unit",
+        description: "Eco-friendly recycling and decommission of failed pump",
+        amount: "€20.00",
+      },
+    ],
+  },
   {
     id: "quote-001",
     reference: "EST-2026-0042",
@@ -232,8 +296,25 @@ export async function getQuoteDetail(
   quoteId: string
 ): Promise<{ success: boolean; data: QuoteRecord | null }> {
   try {
+    /**
+     * ==============================================================================
+     * LIVE API REST ENDPOINT INTEGRATION:
+     * When backend is live, uncomment this block:
+     *
+     * const res = await fetchWithAuth(`/api/quotes/${quoteId}`, {
+     *   method: "GET",
+     *   next: { tags: [`quote-${quoteId}`] },
+     * });
+     * return await res.json();
+     * ==============================================================================
+     */
+    const cleanId = decodeURIComponent(quoteId).trim().toLowerCase();
     const record =
-      MOCK_QUOTE_RECORDS.find((q) => q.id === quoteId) || MOCK_QUOTE_RECORDS[0];
+      MOCK_QUOTE_RECORDS.find(
+        (q) =>
+          q.id.toLowerCase() === cleanId ||
+          q.reference.toLowerCase() === cleanId
+      ) || MOCK_QUOTE_RECORDS[0];
     return { success: true, data: record };
   } catch (error) {
     console.error("Error fetching quote detail:", error);

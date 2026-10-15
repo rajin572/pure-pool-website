@@ -19,7 +19,9 @@ const ACCOUNT_LINKS = [
 ] as const;
 
 const SUPPORT_LINKS = [
-    { label: "Help center & FAQ", href: "/help-center" },
+    { label: "Help center", href: "/help-center" },
+    { label: "Terms of Service", href: "/terms-of-service" },
+    { label: "Privacy Policy", href: "/privacy-policy" },
     { label: "Water safety standards (RD 742/2013)", href: "/water-safety-standards" },
 ] as const;
 
@@ -124,7 +126,7 @@ const Footer = () => {
                 {/* Bottom bar */}
                 <div className="flex flex-col items-center gap-5 pt-8 border-t border-white/10 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-xs sm:text-sm text-primary-color/75 text-center sm:text-left">
-                        © {new Date().getFullYear()} Pure Pool. All rights reserved.
+                        © {new Date().getFullYear()} CI Study. All rights reserved.
                     </p>
                     <div className="flex items-center gap-5">
                         {SOCIAL_LINKS.map(({ label, href, Icon }) => (

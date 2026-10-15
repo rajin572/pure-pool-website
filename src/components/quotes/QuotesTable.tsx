@@ -25,6 +25,14 @@ export const QuotesTable: React.FC<QuotesTableProps> = ({
       header: "Reference",
       accessorKey: "reference",
       cellClassName: "font-semibold text-gray-900 text-sm py-4",
+      render: (reference, record) => (
+        <a
+          href={`/quotes/${record.reference}`}
+          className="text-zinc-900 font-bold hover:text-blue-600 hover:underline transition-colors"
+        >
+          {reference}
+        </a>
+      ),
     },
     {
       header: "For",
@@ -79,15 +87,17 @@ export const QuotesTable: React.FC<QuotesTableProps> = ({
       accessorKey: "id",
       cellClassName: "py-4 text-center",
       render: (_, record) => (
-        <button
-          type="button"
-          onClick={() => onViewQuote(record)}
-          className="p-1.5 rounded-lg text-gray-500 hover:text-sky-600 hover:bg-sky-50 transition-colors cursor-pointer"
+        <a
+          href={`/quotes/${record.reference}`}
+          onClick={() => {
+            if (onViewQuote) onViewQuote(record);
+          }}
+          className="inline-flex p-1.5 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-sky-50 transition-colors cursor-pointer"
           title="Inspect Proposal"
           aria-label="Inspect proposal"
         >
           <Eye className="w-5 h-5" />
-        </button>
+        </a>
       ),
     },
   ];
