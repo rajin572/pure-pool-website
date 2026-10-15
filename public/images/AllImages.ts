@@ -22,6 +22,9 @@ import aboutUsHeroBanner from "./aboutpage/aboutUsHeroBanner.jpg";
 import ourStoryOne from "./aboutpage/ourStory1.png";
 import ourStoryTwo from "./aboutpage/ourStory2.jpg";
 
+// Pool Settings Images
+import poolSetting from "./pool_setting.png";
+
 export const AllImages = {
   logo,
   logoSecondary,
@@ -44,4 +47,6 @@ export const AllImages = {
   aboutUsHeroBanner,
   ourStoryOne,
   ourStoryTwo,
+
+  poolSetting,
 };
