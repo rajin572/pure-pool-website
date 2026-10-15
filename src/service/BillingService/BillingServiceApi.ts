@@ -26,6 +26,7 @@ export interface InvoiceRecord {
   id: string;
   invoiceNumber: string;
   service: string;
+  period?: string;
   date: string;
   dueDate: string;
   amount: string;
@@ -45,23 +46,106 @@ export interface BillingFilterParams {
 
 /**
  * MOCK INVOICE RECORDS
- * Matches Figma Node 40014296:6051
+ * Matches Figma Node 40014997:10295
  */
 export const MOCK_INVOICE_RECORDS: InvoiceRecord[] = [
   {
-    id: "inv-001",
-    invoiceNumber: "INV-2026-0034",
-    service: "Monthly Pool Maintenance (4 visits)",
-    date: "17 May 2026",
-    dueDate: "25 May 2026",
-    amount: "€85.00",
-    status: "Outstanding",
-    subtotal: "€70.25",
-    vatAmount: "€14.75",
+    id: "inv-131",
+    invoiceNumber: "INV-2026-0131",
+    service: "Monthly Pool Maintenance",
+    period: "Sep 2026 · Monthly service",
+    date: "15 Sep 2026",
+    dueDate: "25 Sep 2026",
+    amount: "€285.00",
+    status: "Paid",
+    subtotal: "€235.54",
+    vatAmount: "€49.46",
     vatRate: "21%",
     lineItems: [
-      { description: "Monthly Pool Maintenance (4 visits)", amount: "€70.25" },
-      { description: "Chemical supplies & Salt balance", amount: "€0.00" },
+      { description: "Monthly Pool Maintenance (4 visits)", amount: "€235.54" },
+    ],
+  },
+  {
+    id: "inv-119",
+    invoiceNumber: "INV-2026-0119",
+    service: "Monthly Pool Maintenance",
+    period: "Aug 2026 · Monthly service",
+    date: "15 Aug 2026",
+    dueDate: "25 Aug 2026",
+    amount: "€285.00",
+    status: "Paid",
+    subtotal: "€235.54",
+    vatAmount: "€49.46",
+    vatRate: "21%",
+    lineItems: [
+      { description: "Monthly Pool Maintenance (4 visits)", amount: "€235.54" },
+    ],
+  },
+  {
+    id: "inv-104",
+    invoiceNumber: "INV-2026-0104",
+    service: "Service + filter swap",
+    period: "Jul 2026 · Service + filter swap",
+    date: "15 Jul 2026",
+    dueDate: "25 Jul 2026",
+    amount: "€412.50",
+    status: "Paid",
+    subtotal: "€340.91",
+    vatAmount: "€71.59",
+    vatRate: "21%",
+    lineItems: [
+      { description: "Monthly Pool Maintenance (4 visits)", amount: "€235.54" },
+      { description: "Activated Glass Filter AFM Media Swap", amount: "€105.37" },
+    ],
+  },
+  {
+    id: "inv-093",
+    invoiceNumber: "INV-2026-0093",
+    service: "Monthly Pool Maintenance",
+    period: "Jun 2026 · Monthly service",
+    date: "15 Jun 2026",
+    dueDate: "25 Jun 2026",
+    amount: "€285.00",
+    status: "Paid",
+    subtotal: "€235.54",
+    vatAmount: "€49.46",
+    vatRate: "21%",
+    lineItems: [
+      { description: "Monthly Pool Maintenance (4 visits)", amount: "€235.54" },
+    ],
+  },
+  {
+    id: "inv-070",
+    invoiceNumber: "INV-2026-0070",
+    service: "Opening season service",
+    period: "Apr 2026 · Opening season service",
+    date: "15 Apr 2026",
+    dueDate: "25 Apr 2026",
+    amount: "€320.00",
+    status: "Paid",
+    subtotal: "€264.46",
+    vatAmount: "€55.54",
+    vatRate: "21%",
+    lineItems: [
+      { description: "Seasonal Pool Opening & Intensive Shock", amount: "€264.46" },
+    ],
+  },
+  {
+    id: "inv-052",
+    invoiceNumber: "INV-2026-0052",
+    service: "Pump replacement",
+    period: "May 2026 · Pump replacement",
+    date: "10 May 2026",
+    dueDate: "24 May 2026",
+    amount: "€411.40",
+    status: "Outstanding",
+    subtotal: "€340.00",
+    vatAmount: "€71.40",
+    vatRate: "21%",
+    lineItems: [
+      { description: "AstralPool Victoria Plus pump", amount: "€240.00" },
+      { description: "Certified Plumbing & Connection Labor", amount: "€80.00" },
+      { description: "Disposal of old unit", amount: "€20.00" },
     ],
   },
   {

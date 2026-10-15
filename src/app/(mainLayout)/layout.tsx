@@ -1,5 +1,6 @@
 import Footer from "@/components/shared/Footer";
 import Navbar from "@/components/shared/Navbar";
+import { ChatBot } from "@/components/chatbot";
 // import DaynamicCursor from "@/component/ui/animation/DaynamicCursor";
 // import SmoothScroller from "@/component/ui/animation/SmoothScroller";
 import React from "react";
@@ -13,6 +14,7 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             <main className="flex-1">
                 {children}
             </main>
+            <ChatBot />
             <Footer />
         </div>
     );
