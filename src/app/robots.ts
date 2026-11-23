@@ -6,8 +6,6 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      // The dashboard is an authenticated app area, not public marketing content.
-      disallow: "/dashboard",
     },
     sitemap: `${siteConfig.siteUrl}/sitemap.xml`,
   };

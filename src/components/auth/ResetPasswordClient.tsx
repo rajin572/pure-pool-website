@@ -1,23 +1,31 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import type * as z from "zod";
+import { toast } from "sonner";
 import AuthLeftPanel from "./AuthLeftPanel";
+import PasswordStrength from "./PasswordStrength";
 import { ArrowLeft } from "lucide-react";
 import {
   ReuseableForm,
   FormPassword,
 } from "@/components/ui/CustomUi/ReuseForm/Form";
 import ReusableGradientButton from "@/components/ui/CustomUi/ReusableGradientButton";
-import { ResetPasswordPayload } from "@/service/AuthService/AuthServiceApi";
+import { resetPassword, resetTokenStore } from "@/service/AuthService/AuthServiceApi";
+import { resetPasswordSchema } from "@/schemas/auth";
+
+type ResetForm = z.infer<typeof resetPasswordSchema>;
 
 export const ResetPasswordClient: React.FC = () => {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  const form = useForm<ResetPasswordPayload>({
+  const form = useForm<ResetForm>({
+    resolver: zodResolver(resetPasswordSchema),
     defaultValues: {
       newPassword: "",
       confirmPassword: "",
@@ -25,54 +33,29 @@ export const ResetPasswordClient: React.FC = () => {
   });
 
   const passwordValue = useWatch({ control: form.control, name: "newPassword" }) ?? "";
+  const confirmValue = useWatch({ control: form.control, name: "confirmPassword" }) ?? "";
 
-  // Dynamic strength calculation
-  const getPasswordStrength = (pass: string) => {
-    if (!pass) return { score: 0, label: "Enter a new password" };
-    let score = 0;
-    if (pass.length >= 6) score += 1;
-    if (pass.length >= 8 && /[A-Z]/.test(pass)) score += 1;
-    if (/\d/.test(pass)) score += 1;
-    if (/[^A-Za-z0-9]/.test(pass)) score += 1;
+  // Only reachable after a verified code (the reset token is kept in a 15-minute cookie).
+  useEffect(() => {
+    if (!resetTokenStore.get()) router.replace("/forgot-password");
+  }, [router]);
 
-    switch (score) {
-      case 1:
-        return { score: 1, label: "Weak — try adding numbers and capitals" };
-      case 2:
-        return { score: 2, label: "Fair — add a special character" };
-      case 3:
-        return { score: 3, label: "Strong — add a symbol to max it out" };
-      case 4:
-        return { score: 4, label: "Very strong — optimal security" };
-      default:
-        return { score: 0, label: "Enter a new password" };
+  const handleResetSubmit = async (data: ResetForm) => {
+    const resetToken = resetTokenStore.get();
+    if (!resetToken) {
+      toast.error("Your reset link expired. Request a new code.");
+      router.replace("/forgot-password");
+      return;
     }
-  };
-
-  const strength = getPasswordStrength(passwordValue);
-
-  /**
-   * ==============================================================================
-   * REDUX QUERY HOOK / REST API INTEGRATION
-   * ==============================================================================
-   * When connecting to your live backend:
-   *
-   * const [resetPasswordTrigger, { isLoading }] = useResetPasswordMutation();
-   *
-   * const onSubmit = async (data: ResetPasswordPayload) => {
-   *   const res = await resetPasswordTrigger(data).unwrap();
-   *   if (res.success) {
-   *     router.push("/reset-password/success");
-   *   }
-   * };
-   * ==============================================================================
-   */
-  const handleResetSubmit = () => {
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      router.push("/reset-password/success");
-    }, 600);
+    const res = await resetPassword(resetToken, data.newPassword);
+    setIsSubmitting(false);
+    if (!res.success) {
+      toast.error(res.error?.message || "Couldn't reset the password");
+      return;
+    }
+    resetTokenStore.clear();
+    router.push("/reset-password/success");
   };
 
   return (
@@ -112,6 +95,8 @@ export const ResetPasswordClient: React.FC = () => {
               name="newPassword"
               label="New Password"
               placeholder="Enter new password"
+              autoComplete="new-password"
+              variant="auth"
             />
 
             <FormPassword
@@ -119,36 +104,12 @@ export const ResetPasswordClient: React.FC = () => {
               name="confirmPassword"
               label="Confirm New Password"
               placeholder="Repeat new password"
+              autoComplete="new-password"
+              variant="auth"
             />
 
-            {/* Strength meter */}
-            <div className="flex flex-col gap-1.5 -mt-1">
-              <div className="grid grid-cols-4 gap-1.5 h-1.5 w-full">
-                <div
-                  className={`h-full rounded-full transition-colors ${
-                    strength.score >= 1 ? "bg-blue-600" : "bg-gray-200"
-                  }`}
-                />
-                <div
-                  className={`h-full rounded-full transition-colors ${
-                    strength.score >= 2 ? "bg-blue-600" : "bg-gray-200"
-                  }`}
-                />
-                <div
-                  className={`h-full rounded-full transition-colors ${
-                    strength.score >= 3 ? "bg-blue-600" : "bg-gray-200"
-                  }`}
-                />
-                <div
-                  className={`h-full rounded-full transition-colors ${
-                    strength.score >= 4 ? "bg-blue-600" : "bg-gray-200"
-                  }`}
-                />
-              </div>
-              <span className="text-zinc-500 text-xs font-medium font-['Onest']">
-                {strength.label}
-              </span>
-            </div>
+            {/* Strength + requirements */}
+            <PasswordStrength password={passwordValue} confirm={confirmValue} />
 
             {/* Reset Password Button */}
             <div className="pt-3">

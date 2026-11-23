@@ -6,6 +6,17 @@ export const getServerUrl = () => {
   return process.env.NEXT_PUBLIC_SERVER_API;
 };
 
+/**
+ * Turn a stored file path into a URL. Cloudinary uploads are already absolute and
+ * pass through; local-storage paths (`/uploads/…`) get the server origin prepended.
+ */
+export const resolveImageUrl = (path?: string | null) => {
+  if (!path) return "";
+  if (/^(https?:|data:|blob:)/i.test(path)) return path;
+  const base = (getServerUrl() || "").replace(/\/$/, "");
+  return `${base}${path.startsWith("/") ? "" : "/"}${path}`;
+};
+
 // Public site origin (no trailing slash) — used for canonical URLs, sitemap,
 // robots, Open Graph and JSON-LD. Set NEXT_PUBLIC_SITE_URL to the production
 // domain before deploying; falls back to localhost in development.

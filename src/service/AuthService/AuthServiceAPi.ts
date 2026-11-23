@@ -1,27 +1,44 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
-import { fetchWithAuth } from "@/lib/fetchWraper";
-
 /**
- * ==============================================================================
- * AUTHENTICATION API SERVICES & TYPE DEFINITIONS
- * ==============================================================================
- * Next.js Server Side Rendering (SSR) & Server Actions architecture.
- * Ready for live REST API wiring:
- * - POST: Login user
- * - POST: Register user
- * - POST: Verify registration OTP code
- * - POST: Request password reset email
- * - POST: Verify password reset OTP code
- * - POST: Reset password
- * - GET: Get current session / authenticated profile
- * ==============================================================================
+ * Authentication (Postman folder "Authentication" + GET /auth/me as the session check).
+ *
+ * Called from Client Components, so this module uses `clientFetch` only and must not
+ * import anything server-only (`next/headers`, `fetchWithAuth`).
  */
+import Cookies from "js-cookie";
+import { clientFetch, clearClientAuthTokens } from "@/lib/clientFetch";
+import type { IApiResult, IAuthTokens } from "@/types";
 
+// ---------- Types (from the Postman example responses) ----------
+
+export type TUserRole = "ADMIN" | "MANAGER" | "BACK_OFFICE" | "TECHNICIAN" | "CUSTOMER";
+export type TAccountStatus = "PENDING_REVIEW" | "APPROVED" | "SUSPENDED" | "REJECTED" | string;
+
+export interface ISessionUser {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  role: TUserRole;
+  accountStatus: TAccountStatus;
+  emailVerified: boolean;
+  preferredLocale?: string;
+  notificationPreferences?: Record<string, boolean>;
+  lastLoginAt?: string;
+}
+
+export interface IAuthSession extends IAuthTokens {
+  user: ISessionUser;
+}
+
+export interface IRegisterResult extends IAuthSession {
+  nextStep?: "VERIFY_EMAIL" | string;
+  message?: string;
+}
+
+/** Form shapes used by the auth screens. */
 export interface LoginPayload {
   email: string;
-  password?: string;
+  password: string;
   rememberMe?: boolean;
 }
 
@@ -29,14 +46,9 @@ export interface RegisterPayload {
   fullName: string;
   email: string;
   phoneNumber: string;
-  password?: string;
-  confirmPassword?: string;
+  password: string;
+  confirmPassword: string;
   acceptTerms: boolean;
-}
-
-export interface VerifyOtpPayload {
-  email: string;
-  otpCode: string;
 }
 
 export interface ForgotPasswordPayload {
@@ -44,179 +56,94 @@ export interface ForgotPasswordPayload {
 }
 
 export interface ResetPasswordPayload {
-  email: string;
-  otpCode?: string;
-  newPassword?: string;
-  confirmPassword?: string;
+  newPassword: string;
+  confirmPassword: string;
 }
 
-export interface AuthResponse<T = any> {
-  success: boolean;
-  message: string;
-  data?: T;
-  token?: string;
-}
+/** Backend rule for passwords on register / reset / change: 10–72 characters. */
+export const PASSWORD_MIN = 10;
+export const PASSWORD_MAX = 72;
+
+// ---------- Calls ----------
+
+const request = async <T>(path: string, init: RequestInit = {}): Promise<IApiResult<T>> => {
+  try {
+    const res = await clientFetch(path, init);
+    try {
+      return (await res.json()) as IApiResult<T>;
+    } catch {
+      return { success: false, error: { message: `Request failed (${res.status})` } };
+    }
+  } catch {
+    return { success: false, error: { code: "NETWORK", message: "Can't reach the server. Check your connection." } };
+  }
+};
+
+const post = <T>(path: string, body?: unknown) =>
+  request<T>(path, { method: "POST", ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
+
+type TMessage = { message: string };
+
+export const loginUser = ({ email, password }: LoginPayload) =>
+  post<IAuthSession>("/auth/login", { email: email.trim(), password });
+
+export const registerUser = (data: RegisterPayload) =>
+  post<IRegisterResult>("/auth/register", {
+    name: data.fullName.trim(),
+    email: data.email.trim(),
+    password: data.password,
+    ...(data.phoneNumber?.trim() ? { phone: data.phoneNumber.trim() } : {}),
+  });
+
+export const verifyEmail = (email: string, code: string) =>
+  post<{ verified: boolean }>("/auth/verify-email", { email, code });
+
+export const resendVerification = (email: string) => post<TMessage>("/auth/resend-verification", { email });
+
+export const forgotPassword = (email: string) => post<TMessage>("/auth/forgot-password", { email: email.trim() });
+
+export const verifyResetCode = (email: string, code: string) =>
+  post<{ resetToken: string; expiresInMinutes: number }>("/auth/verify-reset-code", { email, code });
+
+export const resetPassword = (resetToken: string, newPassword: string) =>
+  post<TMessage>("/auth/reset-password", { resetToken, newPassword });
+
+export const getSessionUser = () => request<ISessionUser>("/auth/me");
 
 /**
- * Login user service
+ * POST /auth/logout revokes this user's tokens on every device, then the local cookies
+ * are cleared even if the call failed (offline).
  */
-export async function loginUser(payload: LoginPayload): Promise<AuthResponse> {
-  try {
-    /**
-     * When backend API is live:
-     * const res = await fetchWithAuth("/auth/login", {
-     *   method: "POST",
-     *   body: JSON.stringify(payload),
-     * });
-     * return await res.json();
-     */
-    return {
-      success: true,
-      message: "Logged in successfully",
-      data: {
-        userId: "USR-2026-MAD-981",
-        email: payload.email,
-        name: "Roberto Vidal",
-        role: "pool_owner",
-      },
-      token: "mock-jwt-token-purepool-customer",
-    };
-  } catch (error) {
-    return {
-      success: false,
-      message: "An error occurred during login",
-    };
-  }
-}
+export const logoutUser = async () => {
+  const res = await post<TMessage>("/auth/logout");
+  clearClientAuthTokens();
+  return res;
+};
 
-/**
- * Register user service
- */
-export async function registerUser(payload: RegisterPayload): Promise<AuthResponse> {
-  try {
-    /**
-     * When backend API is live:
-     * const res = await fetchWithAuth("/auth/register", {
-     *   method: "POST",
-     *   body: JSON.stringify(payload),
-     * });
-     * return await res.json();
-     */
-    return {
-      success: true,
-      message: "Registration initiated. Verification code sent to email",
-      data: {
-        email: payload.email,
-        fullName: payload.fullName,
-      },
-    };
-  } catch (error) {
-    return {
-      success: false,
-      message: "An error occurred during registration",
-    };
-  }
-}
+// ---------- Flow helpers ----------
 
-/**
- * Verify Registration OTP
- */
-export async function verifyRegisterOtp(payload: VerifyOtpPayload): Promise<AuthResponse> {
-  try {
-    /**
-     * When backend API is live:
-     * const res = await fetchWithAuth("/auth/verify-registration-otp", {
-     *   method: "POST",
-     *   body: JSON.stringify(payload),
-     * });
-     * return await res.json();
-     */
-    return {
-      success: true,
-      message: "Account verified successfully",
-      token: "mock-jwt-token-purepool-customer",
-    };
-  } catch (error) {
-    return {
-      success: false,
-      message: "Verification failed",
-    };
-  }
-}
+/** Only same-origin relative paths are accepted as a post-login destination. */
+export const safeNextPath = (next: string | null | undefined, fallback = "/my-pool") =>
+  next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/\\") ? next : fallback;
 
-/**
- * Request Password Reset Email
- */
-export async function forgotPassword(payload: ForgotPasswordPayload): Promise<AuthResponse> {
-  try {
-    /**
-     * When backend API is live:
-     * const res = await fetchWithAuth("/auth/forgot-password", {
-     *   method: "POST",
-     *   body: JSON.stringify(payload),
-     * });
-     * return await res.json();
-     */
-    return {
-      success: true,
-      message: "Password reset code dispatched to email",
-      data: { email: payload.email },
-    };
-  } catch (error) {
-    return {
-      success: false,
-      message: "Could not dispatch password reset code",
-    };
-  }
-}
+/** Where a signed-in customer belongs next. */
+export const nextStepFor = (user: ISessionUser, next?: string | null) => {
+  if (!user.emailVerified) return `/register/verify?email=${encodeURIComponent(user.email)}`;
+  if (user.accountStatus === "PENDING_REVIEW") return "/onboarding";
+  return safeNextPath(next);
+};
 
-/**
- * Verify Password Reset OTP
- */
-export async function verifyResetOtp(payload: VerifyOtpPayload): Promise<AuthResponse> {
-  try {
-    /**
-     * When backend API is live:
-     * const res = await fetchWithAuth("/auth/verify-reset-otp", {
-     *   method: "POST",
-     *   body: JSON.stringify(payload),
-     * });
-     * return await res.json();
-     */
-    return {
-      success: true,
-      message: "Code verified successfully",
-      data: { email: payload.email, verified: true },
-    };
-  } catch (error) {
-    return {
-      success: false,
-      message: "Code verification failed",
-    };
-  }
-}
-
-/**
- * Create New Password (Reset)
- */
-export async function resetPassword(payload: ResetPasswordPayload): Promise<AuthResponse> {
-  try {
-    /**
-     * When backend API is live:
-     * const res = await fetchWithAuth("/auth/reset-password", {
-     *   method: "POST",
-     *   body: JSON.stringify(payload),
-     * });
-     * return await res.json();
-     */
-    return {
-      success: true,
-      message: "Password successfully updated",
-    };
-  } catch (error) {
-    return {
-      success: false,
-      message: "Failed to reset password",
-    };
-  }
-}
+// The reset token from the emailed code lives in a short-lived cookie (15 min = backend
+// expiresInMinutes), never in localStorage/sessionStorage or the URL. A reload keeps the step.
+const RESET_TOKEN_COOKIE = "purepool_website_reset_token";
+export const resetTokenStore = {
+  get: () => (typeof window === "undefined" ? null : Cookies.get(RESET_TOKEN_COOKIE) ?? null),
+  set: (token: string) =>
+    Cookies.set(RESET_TOKEN_COOKIE, token, {
+      path: "/",
+      sameSite: "strict",
+      secure: window.location.protocol === "https:",
+      expires: 15 / (24 * 60),
+    }),
+  clear: () => Cookies.remove(RESET_TOKEN_COOKIE, { path: "/" }),
+};

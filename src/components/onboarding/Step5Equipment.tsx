@@ -31,11 +31,10 @@ export const Step5Equipment: React.FC<Step5EquipmentProps> = ({
 }) => {
   const form = useForm<EquipmentFormValues>({
     defaultValues: {
-      equipmentNotes:
-        "AstralPool 1HP variable-speed pump, Cantabric sand filter with AFM glass media, Zodiac electric heat pump, automatic safety roller cover.",
-      hasSaltChlorinator: initialData.hasSaltChlorinator ?? true,
+      equipmentNotes: "",
+      hasSaltChlorinator: initialData.hasSaltChlorinator ?? false,
       hasHeatPump: initialData.heating === "heat_pump",
-      hasAutoCover: true,
+      hasAutoCover: false,
       hasCleanerRobot: initialData.cleanerType === "robot",
     },
   });

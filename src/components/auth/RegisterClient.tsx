@@ -1,11 +1,14 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import type * as z from "zod";
+import { toast } from "sonner";
 import AuthLeftPanel from "./AuthLeftPanel";
-import OtpVerificationModal from "./OtpVerificationModal";
+import PasswordStrength from "./PasswordStrength";
 import {
   ReuseableForm,
   FormInput,
@@ -13,14 +16,18 @@ import {
   FormCheckbox,
 } from "@/components/ui/CustomUi/ReuseForm/Form";
 import ReusableGradientButton from "@/components/ui/CustomUi/ReusableGradientButton";
-import { RegisterPayload } from "@/service/AuthService/AuthServiceApi";
+import { getSessionUser, nextStepFor, registerUser } from "@/service/AuthService/AuthServiceApi";
+import { getClientAccessToken, setClientAuthTokens } from "@/lib/clientFetch";
+import { registerSchema } from "@/schemas/auth";
+
+type RegisterForm = z.infer<typeof registerSchema>;
 
 export const RegisterClient: React.FC = () => {
   const router = useRouter();
-  const [isOtpModalOpen, setIsOtpModalOpen] = useState<boolean>(false);
-  const [registeredEmail, setRegisteredEmail] = useState<string>("you@example.com");
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  const form = useForm<RegisterPayload>({
+  const form = useForm<RegisterForm>({
+    resolver: zodResolver(registerSchema),
     defaultValues: {
       fullName: "",
       email: "",
@@ -32,58 +39,62 @@ export const RegisterClient: React.FC = () => {
   });
 
   const passwordValue = useWatch({ control: form.control, name: "password" }) ?? "";
-
-  // Dynamic strength calculation
-  const getPasswordStrength = (pass: string) => {
-    if (!pass) return { score: 0, label: "Enter a password" };
-    let score = 0;
-    if (pass.length >= 6) score += 1;
-    if (pass.length >= 8 && /[A-Z]/.test(pass)) score += 1;
-    if (/\d/.test(pass)) score += 1;
-    if (/[^A-Za-z0-9]/.test(pass)) score += 1;
-
-    switch (score) {
-      case 1:
-        return { score: 1, label: "Weak — try adding numbers and capitals" };
-      case 2:
-        return { score: 2, label: "Fair — add a special character" };
-      case 3:
-        return { score: 3, label: "Strong — add a symbol to max it out" };
-      case 4:
-        return { score: 4, label: "Very strong — optimal security" };
-      default:
-        return { score: 0, label: "Enter a password" };
-    }
-  };
-
-  const strength = getPasswordStrength(passwordValue);
+  const confirmValue = useWatch({ control: form.control, name: "confirmPassword" }) ?? "";
 
   /**
-   * ==============================================================================
-   * REDUX QUERY HOOK / REST API INTEGRATION
-   * ==============================================================================
-   * When connecting to your live backend:
-   *
-   * const [registerTrigger, { isLoading }] = useRegisterMutation();
-   *
-   * const onSubmit = async (data: RegisterPayload) => {
-   *   const response = await registerTrigger(data).unwrap();
-   *   if (response.success) {
-   *     setRegisteredEmail(data.email);
-   *     setIsOtpModalOpen(true);
-   *   }
-   * };
-   * ==============================================================================
+   * The account is created (and signed in) before the email is verified. The code is
+   * entered on its own page (/register/verify?email=…), which survives a reload.
+   * A visitor who already has a session is sent straight to their next step.
    */
-  const handleRegisterSubmit = (data: RegisterPayload) => {
-    setRegisteredEmail(data.email || "you@example.com");
-    setIsOtpModalOpen(true);
+  const routeSession = (me: Awaited<ReturnType<typeof getSessionUser>>, expectedEmail?: string) => {
+    if (!me.success || me.data.role !== "CUSTOMER") return false;
+    if (expectedEmail && me.data.email.toLowerCase() !== expectedEmail.trim().toLowerCase()) return false;
+    router.replace(nextStepFor(me.data)); // unverified -> /register/verify, pending -> /onboarding
+    return true;
   };
 
-  const handleOtpVerified = () => {
-    setIsOtpModalOpen(false);
-    // Proceed to Onboarding Step 1
-    router.push("/onboarding?step=1");
+  useEffect(() => {
+    if (!getClientAccessToken()) return;
+    let alive = true;
+    getSessionUser().then((me) => {
+      if (alive) routeSession(me);
+    });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
+  }, []);
+
+  const handleRegisterSubmit = async (data: RegisterForm) => {
+    setIsSubmitting(true);
+    const toastId = toast.loading("Creating your account...");
+    const res = await registerUser(data);
+    if (!res.success) {
+      setIsSubmitting(false);
+      if (/already registered/i.test(res.error?.message ?? "")) {
+        // Same browser that already registered this email: continue instead of failing.
+        if (getClientAccessToken() && routeSession(await getSessionUser(), data.email)) {
+          toast.info("You already started signing up. Let's finish verifying your email.", { id: toastId });
+          return;
+        }
+        toast.error("This email already has an account. Sign in to continue; if it isn't verified yet, we'll take you to the code screen.", {
+          id: toastId,
+          duration: 8000,
+          action: {
+            label: "Sign in",
+            onClick: () => router.push(`/login?email=${encodeURIComponent(data.email.trim())}`),
+          },
+        });
+        return;
+      }
+      toast.error(res.error?.message || "Couldn't create the account", { id: toastId });
+      return;
+    }
+    // The account exists now (pending review) and is signed in; the email still needs its code.
+    const { accessToken, refreshToken, user } = res.data;
+    setClientAuthTokens({ accessToken, refreshToken }, true);
+    toast.success("Account created. Enter the 6-digit code we emailed you.", { id: toastId });
+    router.push(`/register/verify?email=${encodeURIComponent(user.email)}`);
   };
 
   return (
@@ -127,6 +138,8 @@ export const RegisterClient: React.FC = () => {
               name="fullName"
               label="Full Name"
               placeholder="Enter your full name"
+              autoComplete="name"
+              variant="auth"
             />
 
             {/* Email & Phone */}
@@ -137,12 +150,18 @@ export const RegisterClient: React.FC = () => {
                 label="Email"
                 type="email"
                 placeholder="you@example.com"
+                autoComplete="email"
+                variant="auth"
               />
               <FormInput
                 control={form.control}
                 name="phoneNumber"
                 label="Phone Number"
                 placeholder="+34 600 000 000"
+                type="tel"
+                autoComplete="tel"
+                inputMode="tel"
+                variant="auth"
               />
             </div>
 
@@ -153,44 +172,21 @@ export const RegisterClient: React.FC = () => {
                 name="password"
                 label="Password"
                 placeholder="Create a password"
+                autoComplete="new-password"
+                variant="auth"
               />
               <FormPassword
                 control={form.control}
                 name="confirmPassword"
                 label="Confirm Password"
                 placeholder="Repeat password"
+                autoComplete="new-password"
+                variant="auth"
               />
             </div>
 
-            {/* Password Strength Meter */}
-            <div className="flex flex-col gap-1.5 -mt-1">
-              <div className="grid grid-cols-4 gap-1.5 h-1.5 w-full">
-                <div
-                  className={`h-full rounded-full transition-colors ${
-                    strength.score >= 1 ? "bg-blue-600" : "bg-gray-200"
-                  }`}
-                />
-                <div
-                  className={`h-full rounded-full transition-colors ${
-                    strength.score >= 2 ? "bg-blue-600" : "bg-gray-200"
-                  }`}
-                />
-                <div
-                  className={`h-full rounded-full transition-colors ${
-                    strength.score >= 3 ? "bg-blue-600" : "bg-gray-200"
-                  }`}
-                />
-                <div
-                  className={`h-full rounded-full transition-colors ${
-                    strength.score >= 4 ? "bg-blue-600" : "bg-gray-200"
-                  }`}
-                />
-              </div>
-              <span className="text-zinc-500 text-xs font-medium font-['Onest']">
-                {strength.label}
-              </span>
-            </div>
-
+            {/* Password strength + requirements */}
+            <PasswordStrength password={passwordValue} confirm={confirmValue} />
             {/* Accept Terms */}
             <div className="pt-1">
               <FormCheckbox
@@ -204,9 +200,10 @@ export const RegisterClient: React.FC = () => {
             <div className="pt-2">
               <ReusableGradientButton
                 type="submit"
-                className="w-full h-14 rounded-2xl text-base sm:text-lg font-bold shadow-md cursor-pointer"
+                disabled={isSubmitting}
+                className="w-full h-14 rounded-2xl text-base sm:text-lg font-bold shadow-md cursor-pointer disabled:opacity-50"
               >
-                Create account
+                {isSubmitting ? "Creating account..." : "Create account"}
               </ReusableGradientButton>
             </div>
           </ReuseableForm>
@@ -217,14 +214,6 @@ export const RegisterClient: React.FC = () => {
           Pure Pool Madrid &bull; Certified Professional Maintenance &bull; Encrypted SSL Protection
         </div>
       </main>
-
-      {/* OTP Verification Modal */}
-      <OtpVerificationModal
-        isOpen={isOtpModalOpen}
-        onClose={() => setIsOtpModalOpen(false)}
-        email={registeredEmail}
-        onSuccess={handleOtpVerified}
-      />
     </div>
   );
 };

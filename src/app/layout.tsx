@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Onest } from "next/font/google";
+import { Toaster } from "sonner";
 import { siteConfig } from "@/lib/site-config";
 import "./globals.css";
 
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className={`${onest.className} min-h-full flex flex-col bg-background-color! font-['Onest']`}>
         {children}
+        <Toaster position="top-center" richColors closeButton />
       </body>
     </html>
   );

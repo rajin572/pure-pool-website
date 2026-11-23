@@ -3,7 +3,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { accountStatusLabel, clearSessionUserCache, useSessionUser } from "@/lib/useSessionUser";
 import { gsap } from "gsap";
 import { useGSAP } from "@gsap/react";
 import {
@@ -149,7 +150,7 @@ export const DROPDOWN_MENU_SECTIONS: DropdownMenuSection[] = [
 
 const Navbar = () => {
     const path = usePathname();
-    // const router = useRouter();
+    const router = useRouter();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [hidden, setHidden] = useState(false);
@@ -159,25 +160,19 @@ const Navbar = () => {
     const navWrapperRef = useRef<HTMLDivElement>(null);
     const [, startLogout] = useTransition();
 
-    // const user = useUserData();
-    const user = {
-        fullName: "Juan Pérez Martínez",
-        email: "juan.perez.m92@gmail.com",
-        isSuscribed: true,
-    };
-    // const user = null;
-    // TODO: wire up real auth. Hardcoded to null (logged-out) so anonymous visitors and
-    // search crawlers see the public marketing nav instead of a fake account menu.
-    // const user = null as { fullName: string; email: string; isSuscribed: boolean } | null;
+    // Signed-in customer from GET /auth/me (null for visitors and crawlers).
+    const sessionUser = useSessionUser();
+    const user = sessionUser
+        ? { fullName: sessionUser.name, email: sessionUser.email, statusLabel: accountStatusLabel(sessionUser) }
+        : null;
     const navItems = user ? LOGGED_IN_NAV_ITEMS : LOGGED_OUT_NAV_ITEMS;
 
+    // Runs after LogoutModal has called POST /auth/logout and cleared the cookies.
     const handleLogout = () => {
-        startLogout(async () => {
-            console.log("Logged out");
-            // await logout();
-            // window.dispatchEvent(new Event(TOKEN_UPDATED_EVENT));
-            // router.push("/");
-            // router.refresh();
+        startLogout(() => {
+            clearSessionUserCache();
+            router.replace("/");
+            router.refresh();
         });
     };
 
@@ -291,10 +286,10 @@ const Navbar = () => {
                                     isOpen={dropdownOpen}
                                     onOpenChange={setDropdownOpen}
                                     user={{
-                                        fullName: user?.fullName || "Juan Pérez Martínez",
-                                        email: user?.email || "juan.perez.m92@gmail.com",
+                                        fullName: user?.fullName || "",
+                                        email: user?.email || "",
                                         avatar: "/images/userAvatar.png",
-                                        plan: user?.isSuscribed ? "Pro Plan" : "Free Plan",
+                                        plan: user?.statusLabel || "",
                                     }}
                                     onLogout={handleLogout}
                                     trigger={
@@ -330,7 +325,7 @@ const Navbar = () => {
                                                     className={`hidden xl:block text-[10px] font-medium tracking-wide leading-none mt-0.5 ${scrolled ? "text-slate-500" : "text-white/70"
                                                         }`}
                                                 >
-                                                    {user?.isSuscribed ? "Pro Plan" : "Free Plan"}
+                                                    {user?.statusLabel}
                                                 </span>
                                             </div>
 

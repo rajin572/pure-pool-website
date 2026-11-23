@@ -55,24 +55,18 @@ const tryCatchWrapper = async (
 
     const res = await asyncFunction(req);
 
+    // Backend envelope: { success: true, data, meta? } | { success: false, error: { code, message } }
     if (!res.success) {
-      console.log(res);
-      // setError?.(res.message);
-      throw new Error(res.message);
+      const failure: Error & { code?: string } = new Error(res.error?.message || res.message);
+      failure.code = res.error?.code;
+      throw failure;
     } else {
-      // Show success toast only if showToast is true
+      // Success responses carry no message, so fall back to the caller's text or a generic one.
       if (showToast) {
-        if (toastSuccessMessage) {
-          toast.success(toastSuccessMessage, {
-            id: toastId,
-            duration: 2000,
-          });
-        } else {
-          toast.success(res.message, {
-            id: toastId,
-            duration: 2000,
-          });
-        }
+        toast.success(toastSuccessMessage || res.message || "Done", {
+          id: toastId,
+          duration: 2000,
+        });
       }
     }
 
@@ -82,8 +76,13 @@ const tryCatchWrapper = async (
   } catch (error: any) {
     console.log(error);
 
-    const errorMessage =
-      error?.data?.message || error?.message || error?.error || "";
+    const errorMessage: string =
+      error?.data?.error?.message ||
+      error?.data?.message ||
+      error?.message ||
+      error?.error ||
+      "";
+    const errorCode: string | undefined = error?.code ?? error?.data?.error?.code;
 
     let displayError = toastErrorMessage;
 
@@ -113,7 +112,7 @@ const tryCatchWrapper = async (
     }
 
     setLoading?.(false);
-    return { success: false, message: displayError };
+    return { success: false, message: displayError, code: errorCode };
   }
 };
 

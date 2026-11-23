@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { toast } from "sonner";
+import { forgotPassword } from "@/service/AuthService/AuthServiceApi";
 import Link from "next/link";
 import AuthLeftPanel from "./AuthLeftPanel";
 import { Mail, ArrowLeft, RefreshCw } from "lucide-react";
@@ -11,7 +13,7 @@ interface ForgotEmailSentClientProps {
 }
 
 export const ForgotEmailSentClient: React.FC<ForgotEmailSentClientProps> = ({
-  email = "elena.n•••@costapools.es",
+  email = "",
 }) => {
   const [resendTimer, setResendTimer] = useState<number>(45);
 
@@ -23,9 +25,12 @@ export const ForgotEmailSentClient: React.FC<ForgotEmailSentClientProps> = ({
     return () => clearInterval(interval);
   }, [resendTimer]);
 
-  const handleResend = () => {
+  const handleResend = async () => {
     if (resendTimer > 0) return;
     setResendTimer(45);
+    const res = await forgotPassword(email);
+    if (res.success) toast.success("A new code is on its way.");
+    else toast.error(res.error?.message || "Couldn't send a new code");
   };
 
   return (
@@ -60,7 +65,7 @@ export const ForgotEmailSentClient: React.FC<ForgotEmailSentClientProps> = ({
             </h2>
             <p className="text-zinc-600 text-sm sm:text-base font-medium font-['Onest'] leading-relaxed max-w-sm">
               We&apos;ve sent a 6-digit code to{" "}
-              <span className="font-semibold text-zinc-900">{email}</span>. It expires in 10 minutes.
+              <span className="font-semibold text-zinc-900">{email}</span>. It expires in 15 minutes.
             </p>
           </div>
 

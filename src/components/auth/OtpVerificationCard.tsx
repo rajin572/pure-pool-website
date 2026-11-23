@@ -4,21 +4,56 @@ import React, { useState, useRef, useEffect } from "react";
 import ReusableGradientButton from "@/components/ui/CustomUi/ReusableGradientButton";
 import { Clock, ArrowLeft, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
+import Cookies from "js-cookie";
+
+const RESEND_COOLDOWN_SECONDS = 45;
+
+// The resend countdown survives a reload: its end time sits in a short-lived cookie
+// (value "<email>|<end ms>", 15 minutes = the code's lifetime). Not auth data.
+const cooldownStore = (key: string | undefined, email: string) => {
+  const name = key ? `purepool_website_otp_${key}` : null;
+  return {
+    /** Seconds left, or null when this email has no saved countdown yet. */
+    read: (): number | null => {
+      const raw = name ? Cookies.get(name) : undefined;
+      if (!raw) return null;
+      const [savedEmail, end] = [raw.slice(0, raw.lastIndexOf("|")), Number(raw.slice(raw.lastIndexOf("|") + 1))];
+      if (savedEmail !== email || !Number.isFinite(end)) return null;
+      return Math.max(0, Math.ceil((end - Date.now()) / 1000));
+    },
+    start: () => {
+      if (!name) return;
+      Cookies.set(name, `${email}|${Date.now() + RESEND_COOLDOWN_SECONDS * 1000}`, {
+        path: "/",
+        sameSite: "strict",
+        secure: window.location.protocol === "https:",
+        expires: 15 / (24 * 60),
+      });
+    },
+    clear: () => {
+      if (name) Cookies.remove(name, { path: "/" });
+    },
+  };
+};
 
 interface OtpVerificationCardProps {
+  /** Names the saved resend countdown (e.g. "verify", "reset"); without it the countdown restarts on reload. */
+  cooldownKey?: string;
   email?: string;
   title?: string;
   subtitle?: string;
   buttonText?: string;
-  onVerify?: (otp: string) => void;
-  onResend?: () => void;
+  /** Verify the code with the backend. Return `false` when it is rejected. */
+  onVerify?: (otp: string) => Promise<boolean | void> | boolean | void;
+  onResend?: () => Promise<unknown> | void;
   backHref?: string;
   isModal?: boolean;
   onClose?: () => void;
 }
 
 export const OtpVerificationCard: React.FC<OtpVerificationCardProps> = ({
-  email = "user•••@gmail.com",
+  cooldownKey,
+  email = "",
   title = "Submit your code",
   subtitle,
   buttonText = "Verify Code",
@@ -29,7 +64,7 @@ export const OtpVerificationCard: React.FC<OtpVerificationCardProps> = ({
   onClose,
 }) => {
   const [digits, setDigits] = useState<string[]>(["", "", "", "", "", ""]);
-  const [timer, setTimer] = useState<number>(45);
+  const [timer, setTimer] = useState<number>(RESEND_COOLDOWN_SECONDS);
   const [isVerifying, setIsVerifying] = useState<boolean>(false);
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -37,6 +72,22 @@ export const OtpVerificationCard: React.FC<OtpVerificationCardProps> = ({
   useEffect(() => {
     inputRefs.current[0]?.focus();
   }, []);
+
+  // Cookies exist only in the browser, so the saved countdown is read after the first
+  // render (the server HTML always shows the full wait).
+  useEffect(() => {
+    let alive = true;
+    Promise.resolve().then(() => {
+      if (!alive) return;
+      const store = cooldownStore(cooldownKey, email);
+      const left = store.read();
+      if (left === null) store.start();
+      else setTimer(left);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [cooldownKey, email]);
 
   useEffect(() => {
     if (timer <= 0) return;
@@ -85,7 +136,8 @@ export const OtpVerificationCard: React.FC<OtpVerificationCardProps> = ({
 
   const handleResend = () => {
     if (timer > 0) return;
-    setTimer(45);
+    setTimer(RESEND_COOLDOWN_SECONDS);
+    cooldownStore(cooldownKey, email).start();
     setDigits(["", "", "", "", "", ""]);
     inputRefs.current[0]?.focus();
     if (onResend) onResend();
@@ -94,16 +146,27 @@ export const OtpVerificationCard: React.FC<OtpVerificationCardProps> = ({
   const fullCode = digits.join("");
   const isComplete = fullCode.length === 6;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isComplete) return;
+    if (!isComplete || isVerifying) return;
 
+    // onVerify calls the backend; `false` means the code was rejected.
     setIsVerifying(true);
-    setTimeout(() => {
+    let accepted = true;
+    try {
+      accepted = (await onVerify?.(fullCode)) !== false;
+    } catch {
+      accepted = false;
+    } finally {
       setIsVerifying(false);
+    }
+    if (accepted) {
+      cooldownStore(cooldownKey, email).clear();
       setIsSuccess(true);
-      if (onVerify) onVerify(fullCode);
-    }, 600);
+    } else {
+      setDigits(["", "", "", "", "", ""]);
+      inputRefs.current[0]?.focus();
+    }
   };
 
   return (
@@ -192,11 +255,16 @@ export const OtpVerificationCard: React.FC<OtpVerificationCardProps> = ({
             </button>
           </div>
 
-          <div className="flex items-center gap-1.5 text-zinc-900 font-semibold">
-            <Clock className="w-4 h-4 text-blue-600" />
-            <span>{timer > 0 ? `${timer}s` : "Expired"}</span>
-          </div>
+          {/* Resend cooldown only; the emailed code itself stays valid for 15 minutes. */}
+          {timer > 0 && (
+            <div className="flex items-center gap-1.5 text-zinc-900 font-semibold">
+              <Clock className="w-4 h-4 text-blue-600" />
+              <span>Resend in {timer}s</span>
+            </div>
+          )}
         </div>
+
+        <p className="-mt-3 text-xs text-zinc-500">The code is valid for 15 minutes.</p>
 
         {/* Submit Button */}
         <ReusableGradientButton

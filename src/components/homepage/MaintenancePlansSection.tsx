@@ -6,6 +6,7 @@ import SectionHeading from "@/components/ui/CustomUi/SectionHeading";
 import ReusableGradientButton from "@/components/ui/CustomUi/ReusableGradientButton";
 import { Check } from "lucide-react";
 import { gsap, useGSAP, prefersReducedMotion } from "@/lib/gsap-util";
+import type { IPublicPlan } from "@/service/HomeService/HomeServiceApi";
 
 interface PlanItem {
   id: string;
@@ -17,58 +18,32 @@ interface PlanItem {
   features: string[];
 }
 
-const PLANS: PlanItem[] = [
-  {
-    id: "essential",
-    name: "Essential",
-    subtitle: "Fortnightly visits for smaller residential pools.",
-    price: "€60",
-    period: "/ month",
-    features: [
-      "Fortnightly maintenance visit",
-      "Water testing and chemical balancing",
-      "Cleaning and filter basket checks",
-      "Pure Pool app access with photos & logs",
-    ],
-  },
-  {
-    id: "premium",
-    name: "Premium",
-    subtitle: "Weekly visits and priority response. What most of our customers choose.",
-    price: "€85",
-    period: "/ month",
-    isPopular: true,
-    features: [
-      "Weekly maintenance visit",
-      "Everything in Essential",
-      "Equipment inspection and warranty tracking",
-      "Priority emergency response",
-      "Same qualified technician every week",
-    ],
-  },
-  {
-    id: "commercial",
-    name: "Commercial",
-    subtitle: "Hotels, communities and public pools with regulatory requirements.",
-    price: "€340",
-    period: "/ month",
-    features: [
-      "Visit frequency tailored to pool volume & usage",
-      "Everything in Premium",
-      "Official sanitary compliance records & reporting",
-      "Multiple pools managed on one central account",
-      "Named Madrid account manager & direct line",
-    ],
-  },
-];
+// Live plans from GET /public/plans (prices are annual).
+const formatPrice = (amount: number, currency: string) =>
+  new Intl.NumberFormat("en-IE", { style: "currency", currency: currency || "EUR", maximumFractionDigits: 0 }).format(amount);
+
+const toPlanItem = (plan: IPublicPlan): PlanItem => ({
+  id: plan._id,
+  name: plan.name,
+  subtitle: plan.description ?? "",
+  price: formatPrice(plan.annualPrice, plan.currency),
+  period: "/ year",
+  // Highlighted plan: PRO, the one the backend describes as "what most of our customers choose".
+  isPopular: plan.code === "PRO",
+  features: plan.inclusions ?? [],
+});
 
 export interface MaintenancePlansSectionProps {
+  /** null = the backend couldn't be reached. */
+  plans?: IPublicPlan[] | null;
   onSelectPlan?: (planName: string) => void;
 }
 
 export const MaintenancePlansSection: React.FC<MaintenancePlansSectionProps> = ({
+  plans,
   onSelectPlan,
 }) => {
+  const items = (plans ?? []).map(toPlanItem);
   const sectionRef = useRef<HTMLElement>(null);
   const cardsRef = useRef<HTMLDivElement>(null);
 
@@ -143,12 +118,18 @@ export const MaintenancePlansSection: React.FC<MaintenancePlansSectionProps> = (
         <SectionHeading
           badge="Maintenance Plans"
           title="Straightforward pricing"
-          description="One fixed monthly fee covers every scheduled visit. Repairs and extra work are always quoted separately, before we start."
+          description="One annual price covers every scheduled visit. Repairs and extra work are always quoted separately, before we start."
           maxWidth="max-w-3xl"
         />
 
+        {items.length === 0 && (
+          <p className="text-center text-sm sm:text-base text-gray-600 mt-14">
+            Our plans can&apos;t be shown right now. Please try again shortly or contact us for a quote.
+          </p>
+        )}
+
         <div ref={cardsRef} className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 mt-14 md:mt-16 items-stretch">
-          {PLANS.map((plan) => {
+          {items.map((plan) => {
             const isDark = plan.isPopular;
 
             return (
@@ -242,7 +223,7 @@ export const MaintenancePlansSection: React.FC<MaintenancePlansSectionProps> = (
 
         {/* Bottom Note */}
         <p className="pricing-note text-center text-xs sm:text-sm text-gray-500 mt-10 max-w-xl mx-auto leading-relaxed">
-          All prices exclude VAT (IVA). No setup fees or lock-in contracts. Cancel or modify anytime with 14 days notice.
+          Prices are per year and exclude VAT (IVA).
         </p>
       </Container>
     </section>

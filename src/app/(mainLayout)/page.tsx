@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import dynamic from "next/dynamic";
 import { HeroSection, WhatWeDoSection } from "@/components/homepage";
 import { siteConfig } from "@/lib/site-config";
+import { getPublicPlans } from "@/service/HomeService/HomeServiceApi";
 
 // Below-the-fold sections are code-split into their own chunks so the initial
 // route bundle (and hydration cost) stays small. Content is still fully
@@ -94,7 +95,9 @@ const structuredData = {
   ],
 };
 
-export default function HomePage() {
+export default async function HomePage() {
+  const plans = await getPublicPlans();
+
   return (
     <div className="w-full flex flex-col">
       <script
@@ -115,7 +118,7 @@ export default function HomePage() {
       <GettingStartedSection />
 
       {/* 5. Maintenance Plans Section */}
-      <MaintenancePlansSection />
+      <MaintenancePlansSection plans={plans} />
 
       {/* 6. Questions (FAQ) Section */}
       <QuestionsSection />

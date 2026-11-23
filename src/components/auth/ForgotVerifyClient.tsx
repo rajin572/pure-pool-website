@@ -5,14 +5,35 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import AuthLeftPanel from "./AuthLeftPanel";
 import OtpVerificationCard from "./OtpVerificationCard";
+import { toast } from "sonner";
+import { forgotPassword, resetTokenStore, verifyResetCode } from "@/service/AuthService/AuthServiceApi";
 
 export const ForgotVerifyClient: React.FC = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const email = searchParams.get("email") || "user•••@gmail.com";
+  const email = searchParams.get("email") || "";
 
-  const handleVerified = () => {
+  const handleVerify = async (code: string) => {
+    if (!email) {
+      toast.error("Missing email address. Start the reset again.");
+      return false;
+    }
+    const res = await verifyResetCode(email, code);
+    if (!res.success) {
+      toast.error(res.error?.message || "That code didn't work");
+      return false;
+    }
+    resetTokenStore.set(res.data.resetToken);
     router.push("/reset-password");
+    return true;
+  };
+
+  // Requesting a reset again sends a fresh code.
+  const handleResend = async () => {
+    if (!email) return;
+    const res = await forgotPassword(email);
+    if (res.success) toast.success("A new code is on its way.");
+    else toast.error(res.error?.message || "Couldn't send a new code");
   };
 
   return (
@@ -27,12 +48,14 @@ export const ForgotVerifyClient: React.FC = () => {
         {/* Center Card */}
         <div className="w-full max-w-xl mx-auto flex flex-col items-center gap-4 my-auto">
           <OtpVerificationCard
+            cooldownKey="reset"
             email={email}
             title="Verify your code"
             subtitle={`Enter the 6-digit code sent to ${email} to continue.`}
             buttonText="Verify code"
             backHref="/forgot-password"
-            onVerify={handleVerified}
+            onVerify={handleVerify}
+            onResend={handleResend}
           />
 
           <div className="flex items-center justify-center gap-1.5 text-sm text-zinc-500">

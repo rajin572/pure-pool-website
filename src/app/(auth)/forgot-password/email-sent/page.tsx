@@ -6,7 +6,7 @@ import ForgotEmailSentClient from "@/components/auth/ForgotEmailSentClient";
 
 function ForgotEmailSentContent() {
   const searchParams = useSearchParams();
-  const email = searchParams.get("email") || "elena.n•••@costapools.es";
+  const email = searchParams.get("email") || "";
 
   return <ForgotEmailSentClient email={email} />;
 }

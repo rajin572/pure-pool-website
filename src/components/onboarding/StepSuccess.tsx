@@ -72,10 +72,10 @@ export const StepSuccess: React.FC<StepSuccessProps> = ({
         </ReusableGradientButton>
 
         <Link
-          href="/dashboard"
+          href="/pool-settings"
           className="w-full h-14 py-4 bg-white rounded-2xl outline outline-1 -outline-offset-1 outline-gray-200 hover:bg-gray-50 flex items-center justify-center text-zinc-900 text-base sm:text-lg font-bold transition-colors"
         >
-          Go to Dashboard
+          Pool Settings
         </Link>
       </div>
     </div>

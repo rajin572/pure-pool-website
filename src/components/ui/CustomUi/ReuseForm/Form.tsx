@@ -130,6 +130,16 @@ export function FormBase<
   );
 }
 
+/**
+ * "auth" is the roomier look used by the sign-in / sign-up / reset screens: 48px tall,
+ * 16px side padding, rounded-xl, a visible blue focus ring and a red error state.
+ * The default variant keeps the older compact look other screens restyle themselves.
+ */
+type FieldVariant = "default" | "auth";
+
+const AUTH_FIELD =
+  "h-12 rounded-xl border border-zinc-300 bg-white px-4 py-0 text-base text-zinc-900 shadow-none placeholder:text-zinc-400 hover:border-zinc-400 focus-visible:border-blue-600 focus-visible:ring-3 focus-visible:ring-blue-600/15 aria-invalid:border-destructive aria-invalid:ring-destructive/15 disabled:bg-zinc-50";
+
 export const FormInput: FormControlFunc<{
   prefix?: ReactNode;
   suffix?: ReactNode;
@@ -137,8 +147,13 @@ export const FormInput: FormControlFunc<{
   placeholder?: string;
   disabled?: boolean;
   type?: string;
+  variant?: FieldVariant;
+  /** Browser autofill hint, e.g. "email", "name", "tel". */
+  autoComplete?: string;
+  inputMode?: "text" | "email" | "tel" | "numeric" | "decimal" | "search" | "url";
 }> = (props) => {
-  const { prefix, suffix, inputClassName, placeholder, disabled, type, ...restProps } = props;
+  const { prefix, suffix, inputClassName, placeholder, disabled, type, variant = "default", autoComplete, inputMode, ...restProps } = props;
+  const auth = variant === "auth";
 
   return (
     <FormBase {...restProps}>
@@ -151,14 +166,18 @@ export const FormInput: FormControlFunc<{
           )}
           <Input
             className={cn(
-              "border-[#E5E5E5]! bg-[#F5F5F5]! placeholder:text-base-color/50! outline-none! shadow-none! ring-0! text-base! py-5!",
-              prefix && "pl-10",
-              suffix && "pr-10",
+              auth
+                ? AUTH_FIELD
+                : "border-[#E5E5E5]! bg-[#F5F5F5]! placeholder:text-base-color/50! outline-none! shadow-none! ring-0! text-base! py-5!",
+              prefix && (auth ? "pl-11" : "pl-10"),
+              suffix && (auth ? "pr-11" : "pr-10"),
               inputClassName
             )}
             type={type}
             placeholder={placeholder}
             disabled={disabled}
+            autoComplete={autoComplete}
+            inputMode={inputMode}
             {...field}
           />
           {suffix && (
@@ -214,9 +233,18 @@ export const FormTextarea: FormControlFunc<{
   );
 };
 
-export const FormPassword: FormControlFunc<{ prefix?: ReactNode; placeholder?: string; inputClassName?: string }> = (props) => {
-  const { prefix, placeholder, inputClassName, ...restProps } = props;
+export const FormPassword: FormControlFunc<{
+  prefix?: ReactNode;
+  placeholder?: string;
+  inputClassName?: string;
+  variant?: FieldVariant;
+  /** "current-password" on sign-in, "new-password" wherever a password is chosen. */
+  autoComplete?: "current-password" | "new-password";
+}> = (props) => {
+  const { prefix, placeholder, inputClassName, variant = "default", autoComplete, ...restProps } = props;
+  const auth = variant === "auth";
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [capsLockOn, setCapsLockOn] = useState(false);
 
   const togglePasswordVisibility = () => {
     setIsPasswordVisible(!isPasswordVisible);
@@ -225,34 +253,57 @@ export const FormPassword: FormControlFunc<{ prefix?: ReactNode; placeholder?: s
   return (
     <FormBase {...restProps}>
       {(field) => (
-        <div className="relative">
-          {prefix && (
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
-              {prefix}
-            </div>
+        <div className="flex flex-col gap-1.5">
+          <div className="relative">
+            {prefix && (
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                {prefix}
+              </div>
+            )}
+            <Input
+              className={cn(
+                auth
+                  ? AUTH_FIELD
+                  : "placeholder:text-base-color/50! bg-primary-color! border! border-base-color/30! focus:border-base-color/70! outline-none! shadow! ring-0! text-base! py-2!",
+                prefix && (auth ? "pl-11" : "pl-10"),
+                auth ? "pr-12" : "pr-10", // room for the eye button
+                inputClassName
+              )}
+              type={isPasswordVisible ? "text" : "password"}
+              placeholder={placeholder}
+              autoComplete={autoComplete}
+              {...field}
+              onKeyDown={(e) => setCapsLockOn(e.getModifierState("CapsLock"))}
+              onKeyUp={(e) => setCapsLockOn(e.getModifierState("CapsLock"))}
+              onBlur={() => {
+                setCapsLockOn(false);
+                field.onBlur();
+              }}
+            />
+            <button
+              type="button"
+              aria-label={isPasswordVisible ? "Hide password" : "Show password"}
+              aria-pressed={isPasswordVisible}
+              className={cn(
+                "absolute top-1/2 -translate-y-1/2 rounded-md text-base-color/70 transition-colors hover:text-base-color focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600/40",
+                auth ? "right-2 p-2.5" : "right-1.5 p-2"
+              )}
+              // Keep the caret in the field when the button is clicked.
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={togglePasswordVisibility}
+            >
+              {isPasswordVisible ? (
+                <EyeOffIcon className="size-4" />
+              ) : (
+                <EyeIcon className="size-4" />
+              )}
+            </button>
+          </div>
+          {capsLockOn && (
+            <p role="status" className="text-xs font-medium text-amber-600">
+              Caps Lock is on
+            </p>
           )}
-          <Input
-            className={cn(
-              "placeholder:text-base-color/50! bg-primary-color! border! border-base-color/30! focus:border-base-color/70! outline-none! shadow! ring-0! text-base! py-2!",
-              prefix && "pl-10",
-              "pr-10", // Always add right padding for eye icon
-              inputClassName
-            )}
-            type={isPasswordVisible ? "text" : "password"}
-            placeholder={placeholder}
-            {...field}
-          />
-          <button
-            type="button"
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-base-color"
-            onClick={togglePasswordVisibility}
-          >
-            {isPasswordVisible ? (
-              <EyeOffIcon className="size-4" />
-            ) : (
-              <EyeIcon className="size-4" />
-            )}
-          </button>
         </div>
       )}
     </FormBase>

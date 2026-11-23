@@ -73,7 +73,7 @@ export const AuthLeftPanel: React.FC<AuthLeftPanelProps> = ({
             },
             {
               icon: <Clock className="w-4 h-4 text-white" />,
-              title: "Expires in 10 minutes",
+              title: "Expires in 15 minutes",
               desc: "Request a fresh one whenever you need.",
             },
             {

@@ -4,6 +4,9 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import type * as z from "zod";
+import { toast } from "sonner";
 import AuthLeftPanel from "./AuthLeftPanel";
 import { ArrowLeft } from "lucide-react";
 import {
@@ -11,40 +14,32 @@ import {
   FormInput,
 } from "@/components/ui/CustomUi/ReuseForm/Form";
 import ReusableGradientButton from "@/components/ui/CustomUi/ReusableGradientButton";
-import { ForgotPasswordPayload } from "@/service/AuthService/AuthServiceApi";
+import { forgotPassword } from "@/service/AuthService/AuthServiceApi";
+import { forgotPasswordSchema } from "@/schemas/auth";
+
+type ForgotForm = z.infer<typeof forgotPasswordSchema>;
 
 export const ForgotPasswordClient: React.FC = () => {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  const form = useForm<ForgotPasswordPayload>({
+  const form = useForm<ForgotForm>({
+    resolver: zodResolver(forgotPasswordSchema),
     defaultValues: {
       email: "",
     },
   });
 
-  /**
-   * ==============================================================================
-   * REDUX QUERY HOOK / REST API INTEGRATION
-   * ==============================================================================
-   * When connecting to your live backend:
-   *
-   * const [forgotPasswordTrigger, { isLoading }] = useForgotPasswordMutation();
-   *
-   * const onSubmit = async (data: ForgotPasswordPayload) => {
-   *   const res = await forgotPasswordTrigger(data).unwrap();
-   *   if (res.success) {
-   *     router.push(`/forgot-password/email-sent?email=${encodeURIComponent(data.email)}`);
-   *   }
-   * };
-   * ==============================================================================
-   */
-  const handleForgotSubmit = (data: ForgotPasswordPayload) => {
+  const handleForgotSubmit = async (data: ForgotForm) => {
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      router.push(`/forgot-password/email-sent?email=${encodeURIComponent(data.email || "you@example.com")}`);
-    }, 600);
+    // The backend answers the same way whether or not the email has an account.
+    const res = await forgotPassword(data.email);
+    setIsSubmitting(false);
+    if (!res.success) {
+      toast.error(res.error?.message || "Couldn't send the code");
+      return;
+    }
+    router.push(`/forgot-password/email-sent?email=${encodeURIComponent(data.email.trim())}`);
   };
 
   return (
@@ -85,6 +80,8 @@ export const ForgotPasswordClient: React.FC = () => {
               label="Email"
               type="email"
               placeholder="you@example.com"
+              autoComplete="email"
+              variant="auth"
             />
 
             {/* Send Reset Code Button */}
@@ -99,7 +96,7 @@ export const ForgotPasswordClient: React.FC = () => {
             </div>
 
             <div className="text-center text-sm text-zinc-400">
-              The code expires 10 minutes after it&apos;s sent.
+              The code expires 15 minutes after it&apos;s sent.
             </div>
           </ReuseableForm>
         </div>

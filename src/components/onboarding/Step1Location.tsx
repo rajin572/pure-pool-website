@@ -46,7 +46,7 @@ export const Step1Location: React.FC<Step1LocationProps> = ({
           control={form.control}
           name="poolAddress"
           label="Pool Address"
-          placeholder="Calle de las Acacias 14, Chalet B"
+          placeholder="e.g. Calle de las Acacias 14, Chalet B"
         />
 
         {/* Postal & City */}
@@ -55,13 +55,13 @@ export const Step1Location: React.FC<Step1LocationProps> = ({
             control={form.control}
             name="postalCode"
             label="Postal Code"
-            placeholder="28223"
+            placeholder="e.g. 28223"
           />
           <FormInput
             control={form.control}
             name="city"
             label="City / Province"
-            placeholder="Pozuelo de Alarcón, Madrid"
+            placeholder="e.g. Pozuelo de Alarcón, Madrid"
           />
         </div>
 

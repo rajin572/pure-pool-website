@@ -10,7 +10,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { logoutUserApi } from "@/service/ProfileService/ProfileServiceApi";
+import { logoutUser } from "@/service/AuthService/AuthServiceApi";
 
 export interface LogoutModalProps {
   open: boolean;
@@ -28,9 +28,8 @@ export const LogoutModal: React.FC<LogoutModalProps> = ({
   const handleLogout = async () => {
     try {
       setIsLoggingOut(true);
-      // API call (ready for backend)
-      // await logoutUserApi();
-      await logoutUserApi();
+      // POST /auth/logout (ends this user's sessions on every device), then clear cookies.
+      await logoutUser();
 
       if (onLogoutConfirm) {
         onLogoutConfirm();

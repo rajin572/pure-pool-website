@@ -18,15 +18,18 @@ export const Step4Photos: React.FC<Step4PhotosProps> = ({
   onNext,
   onBack,
 }) => {
-  const [photos, setPhotos] = useState<string[]>([
-    AllImages.pool1.src,
-    AllImages.pool2.src,
-  ]);
+  // Starts with whatever was already added (nothing for a new onboarding).
+  const [photos, setPhotos] = useState<string[]>(() =>
+    [initialData.poolOverviewPhoto, initialData.equipmentPhoto, initialData.accessGatePhoto].filter(
+      (src): src is string => !!src
+    )
+  );
 
   const handleAddSamplePhoto = () => {
     if (photos.length >= 4) return;
-    const poolSources = [AllImages.pool3.src, AllImages.pool4.src];
-    const nextPhoto = poolSources[photos.length - 2] || AllImages.myPool.src;
+    // Placeholder picker until the real upload is wired (project-docs task for files).
+    const poolSources = [AllImages.pool1.src, AllImages.pool2.src, AllImages.pool3.src, AllImages.pool4.src];
+    const nextPhoto = poolSources[photos.length] || AllImages.myPool.src;
     setPhotos([...photos, nextPhoto]);
   };
 

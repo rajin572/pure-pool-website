@@ -5,7 +5,22 @@ import Image from "next/image";
 import { Edit2, CheckCircle2 } from "lucide-react";
 import OnboardingActionRow from "./OnboardingActionRow";
 import { FullOnboardingData } from "@/service/OnboardingService/OnboardingServiceApi";
-import { AllImages } from "@/../public/images/AllImages";
+
+const NOT_PROVIDED = "Not provided";
+
+/** "heat_pump" -> "heat pump", "unknown" -> "Not sure". */
+const pretty = (value?: string) =>
+  !value ? NOT_PROVIDED : value === "unknown" ? "Not sure" : value.replace(/_/g, " ");
+
+/** Short list of the equipment the customer actually picked; unknown/none are left out. */
+const equipmentSummary = (e: FullOnboardingData["equipment"]) =>
+  [
+    e.pumpType === "variable_speed" ? "Variable-speed pump" : e.pumpType === "single_speed" ? "Single-speed pump" : "",
+    { sand: "Sand filter", glass: "Glass media filter", cartridge: "Cartridge filter", de: "DE filter", unknown: "" }[e.filterType],
+    { heat_pump: "Heat pump", solar: "Solar heating", none: "", unknown: "" }[e.heating],
+    e.hasSaltChlorinator ? "Salt chlorinator" : "",
+    { robot: "Robot cleaner", suction: "Suction cleaner", manual: "", none: "" }[e.cleanerType],
+  ].filter(Boolean);
 
 interface StepReviewProps {
   data: FullOnboardingData;
@@ -21,6 +36,19 @@ export const StepReview: React.FC<StepReviewProps> = ({
   onConfirm,
 }) => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  const photos = [data.photos.poolOverviewPhoto, data.photos.equipmentPhoto, data.photos.accessGatePhoto].filter(
+    (src): src is string => !!src
+  );
+  const equipment = equipmentSummary(data.equipment);
+  const features = [
+    data.shape.hasSpa && "Spa",
+    data.shape.hasInfinityEdge && "Infinity edge",
+    data.shape.hasAutoCover && "Automatic cover",
+    data.shape.hasLighting && "Pool lighting",
+  ].filter(Boolean);
+  const { lengthMeters, widthMeters, depthMeters } = data.specifications;
+  const hasDimensions = !!(lengthMeters || widthMeters || depthMeters);
 
   const handleConfirm = () => {
     setIsSubmitting(true);
@@ -63,19 +91,19 @@ export const StepReview: React.FC<StepReviewProps> = ({
             <div className="flex justify-between py-1 border-b border-gray-50">
               <span className="text-zinc-500 font-medium">Address</span>
               <span className="text-zinc-900 font-semibold text-right max-w-xs truncate">
-                {data.location.poolAddress || "Calle de las Acacias 14"}
+                {data.location.poolAddress || NOT_PROVIDED}
               </span>
             </div>
             <div className="flex justify-between py-1 border-b border-gray-50">
               <span className="text-zinc-500 font-medium">Postal &amp; City</span>
               <span className="text-zinc-900 font-semibold text-right">
-                {data.location.postalCode} {data.location.city}
+                {[data.location.postalCode, data.location.city].filter(Boolean).join(" ") || NOT_PROVIDED}
               </span>
             </div>
             <div className="flex justify-between py-1">
               <span className="text-zinc-500 font-medium">Gate Code</span>
               <span className="text-zinc-900 font-semibold text-right">
-                {data.location.gateCode || "None provided"}
+                {data.location.gateCode || NOT_PROVIDED}
               </span>
             </div>
           </div>
@@ -101,27 +129,27 @@ export const StepReview: React.FC<StepReviewProps> = ({
             <div className="flex justify-between py-1 border-b border-gray-50">
               <span className="text-zinc-500 font-medium">Type</span>
               <span className="text-zinc-900 font-semibold capitalize">
-                {data.specifications.poolType}
+                {pretty(data.specifications.poolType)}
               </span>
             </div>
             <div className="flex justify-between py-1 border-b border-gray-50">
               <span className="text-zinc-500 font-medium">Approx. Volume</span>
               <span className="text-zinc-900 font-semibold">
-                {data.specifications.approximateVolume || "55,000"} L
+                {data.specifications.approximateVolume ? `${data.specifications.approximateVolume} L` : NOT_PROVIDED}
               </span>
             </div>
             <div className="flex justify-between py-1 border-b border-gray-50">
               <span className="text-zinc-500 font-medium">Dimensions (LxWxD)</span>
               <span className="text-zinc-900 font-semibold">
-                {data.specifications.lengthMeters || "10"}m &times;{" "}
-                {data.specifications.widthMeters || "5"}m &times;{" "}
-                {data.specifications.depthMeters || "1.8"}m
+                {hasDimensions
+                  ? `${lengthMeters || "?"} × ${widthMeters || "?"} × ${depthMeters || "?"} m`
+                  : NOT_PROVIDED}
               </span>
             </div>
             <div className="flex justify-between py-1">
               <span className="text-zinc-500 font-medium">Water Treatment</span>
               <span className="text-zinc-900 font-semibold capitalize">
-                {data.specifications.waterTreatment}
+                {pretty(data.specifications.waterTreatment)}
               </span>
             </div>
           </div>
@@ -147,19 +175,19 @@ export const StepReview: React.FC<StepReviewProps> = ({
             <div className="flex justify-between py-1 border-b border-gray-50">
               <span className="text-zinc-500 font-medium">Selected Outline</span>
               <span className="text-zinc-900 font-semibold capitalize">
-                {data.shape.shape?.replace("_", " ") || "Rectangular"}
+                {pretty(data.shape.shape)}
               </span>
             </div>
             <div className="flex justify-between py-1 border-b border-gray-50">
               <span className="text-zinc-500 font-medium">Finish Material</span>
               <span className="text-zinc-900 font-semibold capitalize">
-                {data.specifications.surfaceFinish}
+                {pretty(data.specifications.surfaceFinish)}
               </span>
             </div>
             <div className="flex justify-between py-1">
               <span className="text-zinc-500 font-medium">Special Features</span>
-              <span className="text-zinc-900 font-semibold">
-                Automatic Cover, LED Lighting
+              <span className="text-zinc-900 font-semibold text-right">
+                {features.length ? features.join(", ") : "None selected"}
               </span>
             </div>
           </div>
@@ -183,29 +211,21 @@ export const StepReview: React.FC<StepReviewProps> = ({
 
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
-              <div className="relative size-14 rounded-xl overflow-hidden border border-gray-200">
-                <Image
-                  src={AllImages.pool1}
-                  alt="Overview thumbnail"
-                  fill
-                  className="object-cover"
-                />
-              </div>
-              <div className="relative size-14 rounded-xl overflow-hidden border border-gray-200">
-                <Image
-                  src={AllImages.pool2}
-                  alt="Equipment thumbnail"
-                  fill
-                  className="object-cover"
-                />
-              </div>
+              {photos.map((src, i) => (
+                <div key={src + i} className="relative size-14 rounded-xl overflow-hidden border border-gray-200">
+                  <Image src={src} alt={`Pool photo ${i + 1}`} fill className="object-cover" />
+                </div>
+              ))}
               <span className="text-xs text-zinc-500 font-medium">
-                2 site photos attached for technician
+                {photos.length
+                  ? `${photos.length} site photo${photos.length > 1 ? "s" : ""} attached for technician`
+                  : "No photos added"}
               </span>
             </div>
 
             <div className="text-xs sm:text-sm text-zinc-600 pt-1">
-              <span className="font-semibold text-zinc-800">Installed equipment:</span> Variable-speed pump, glass media filter, Zodiac heat pump.
+              <span className="font-semibold text-zinc-800">Installed equipment:</span>{" "}
+              {equipment.length ? `${equipment.join(", ")}.` : NOT_PROVIDED}
             </div>
           </div>
         </div>

@@ -1,9 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import type * as z from "zod";
+import { toast } from "sonner";
 import AuthLeftPanel from "./AuthLeftPanel";
 import {
   ReuseableForm,
@@ -12,13 +15,18 @@ import {
   FormCheckbox,
 } from "@/components/ui/CustomUi/ReuseForm/Form";
 import ReusableGradientButton from "@/components/ui/CustomUi/ReusableGradientButton";
-import { LoginPayload } from "@/service/AuthService/AuthServiceApi";
+import { loginUser, nextStepFor } from "@/service/AuthService/AuthServiceApi";
+import { setClientAuthTokens } from "@/lib/clientFetch";
+import { loginSchema } from "@/schemas/auth";
+
+type LoginForm = z.infer<typeof loginSchema>;
 
 export const LoginClient: React.FC = () => {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  const form = useForm<LoginPayload>({
+  const form = useForm<LoginForm>({
+    resolver: zodResolver(loginSchema),
     defaultValues: {
       email: "",
       password: "",
@@ -26,30 +34,34 @@ export const LoginClient: React.FC = () => {
     },
   });
 
-  /**
-   * ==============================================================================
-   * REDUX QUERY HOOK / REST API INTEGRATION
-   * ==============================================================================
-   * When connecting to your live backend:
-   *
-   * const [loginTrigger, { isLoading }] = useLoginMutation();
-   *
-   * const onSubmit = async (data: LoginPayload) => {
-   *   const response = await loginTrigger(data).unwrap();
-   *   if (response.token) {
-   *     // Save JWT to cookie / store
-   *     router.push("/my-pool");
-   *   }
-   * };
-   * ==============================================================================
-   */
-  const handleLoginSubmit = () => {
+  // Prefill from ?email= (e.g. "Sign in" from the register page).
+  useEffect(() => {
+    const email = new URLSearchParams(window.location.search).get("email");
+    if (email) form.setValue("email", email);
+  }, [form]);
+
+  const handleLoginSubmit = async (data: LoginForm) => {
     setIsSubmitting(true);
-    setTimeout(() => {
+    const toastId = toast.loading("Signing in...");
+    const res = await loginUser(data);
+    if (!res.success) {
+      toast.error(res.error?.message || "Couldn't sign in", { id: toastId });
       setIsSubmitting(false);
-      // Route to customer pool overview
-      router.push("/my-pool");
-    }, 600);
+      return;
+    }
+    const { user, accessToken, refreshToken } = res.data;
+    if (user.role !== "CUSTOMER") {
+      // The client portal is for customers; staff use the Back Office. Tokens are discarded.
+      toast.error("This is the customer portal. Staff accounts sign in to the Back Office.", { id: toastId });
+      setIsSubmitting(false);
+      return;
+    }
+    setClientAuthTokens({ accessToken, refreshToken }, data.rememberMe ?? true);
+    toast.success(`Welcome back, ${user.name}`, { id: toastId });
+    // ?next= comes from the proxy redirect; only same-origin paths are accepted.
+    const next = new URLSearchParams(window.location.search).get("next");
+    router.replace(nextStepFor(user, next));
+    router.refresh();
   };
 
   return (
@@ -94,6 +106,8 @@ export const LoginClient: React.FC = () => {
               label="Email"
               type="email"
               placeholder="you@example.com"
+              autoComplete="email"
+              variant="auth"
             />
 
             {/* Password */}
@@ -102,6 +116,8 @@ export const LoginClient: React.FC = () => {
               name="password"
               label="Password"
               placeholder="Enter your password"
+              autoComplete="current-password"
+              variant="auth"
             />
 
             {/* Remember Me & Forgot Password Row */}

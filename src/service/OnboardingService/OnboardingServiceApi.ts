@@ -78,29 +78,34 @@ export interface FullOnboardingData {
   equipment: OnboardingEquipmentData;
 }
 
+/**
+ * A brand-new onboarding starts blank: text fields are empty (the screens show placeholders),
+ * and choices start on "not sure" / "none" so nothing a customer didn't say is submitted.
+ * Only the pool outline needs a value to render the picker; it starts on "rectangular".
+ */
 export const initialOnboardingData: FullOnboardingData = {
   location: {
-    poolAddress: "Calle de las Acacias 14, Chalet B",
-    postalCode: "28223",
-    city: "Pozuelo de Alarcón, Madrid",
-    gateCode: "4920",
-    accessNotes: "Technician may enter via side gate next to garage. Water meter is on the right.",
+    poolAddress: "",
+    postalCode: "",
+    city: "",
+    gateCode: "",
+    accessNotes: "",
   },
   specifications: {
-    poolType: "residential",
-    approximateVolume: "55000",
-    lengthMeters: "10.0",
-    widthMeters: "5.0",
-    depthMeters: "1.8",
-    waterTreatment: "saltwater",
-    surfaceFinish: "tile",
+    poolType: "unknown",
+    approximateVolume: "",
+    lengthMeters: "",
+    widthMeters: "",
+    depthMeters: "",
+    waterTreatment: "unknown",
+    surfaceFinish: "unknown",
   },
   shape: {
     shape: "rectangular",
     hasSpa: false,
     hasInfinityEdge: false,
-    hasAutoCover: true,
-    hasLighting: true,
+    hasAutoCover: false,
+    hasLighting: false,
   },
   photos: {
     poolOverviewPhoto: "",
@@ -108,11 +113,11 @@ export const initialOnboardingData: FullOnboardingData = {
     accessGatePhoto: "",
   },
   equipment: {
-    filterType: "glass",
-    pumpType: "variable_speed",
-    heating: "heat_pump",
-    hasSaltChlorinator: true,
-    cleanerType: "robot",
+    filterType: "unknown",
+    pumpType: "unknown",
+    heating: "unknown",
+    hasSaltChlorinator: false,
+    cleanerType: "none",
   },
 };
 
