@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { toast } from "sonner";
 import { Check } from "lucide-react";
 import {
   Dialog,
@@ -10,41 +11,44 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { errorMessage } from "@/lib/apiRequest";
+import { applySessionUser } from "@/lib/useSessionUser";
 import {
   SUPPORTED_LANGUAGES,
   ILanguageOption,
-  updateLanguageApi,
+  updateProfile,
 } from "@/service/ProfileService/ProfileServiceApi";
 
 export interface LanguageModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  currentLanguage?: string;
-  onLanguageChanged?: (newLanguage: string) => void;
+  /** Locale code the account has now (`en`, `es`, …). */
+  currentLocale?: string;
 }
 
 export const LanguageModal: React.FC<LanguageModalProps> = ({
   open,
   onOpenChange,
-  currentLanguage = "English",
-  onLanguageChanged,
+  currentLocale = "en",
 }) => {
-  const [selectedLanguage, setSelectedLanguage] = useState<string>(currentLanguage);
+  const [selectedLocale, setSelectedLocale] = useState<string>(currentLocale);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSave = async () => {
-    try {
-      setIsSubmitting(true);
-      // API call (ready for backend)
-      // await updateLanguageApi({ language: selectedLanguage });
-      await updateLanguageApi({ language: selectedLanguage });
-
-      if (onLanguageChanged) {
-        onLanguageChanged(selectedLanguage);
-      }
+    if (selectedLocale === currentLocale) {
       onOpenChange(false);
-    } catch (error) {
-      console.error("Failed to update language:", error);
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const res = await updateProfile({ preferredLocale: selectedLocale });
+      if (!res.success) {
+        toast.error(errorMessage(res, "Your language could not be saved."));
+        return;
+      }
+      applySessionUser(res.data);
+      toast.success("Language updated");
+      onOpenChange(false);
     } finally {
       setIsSubmitting(false);
     }
@@ -67,11 +71,11 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
 
         <div className="px-6 py-5 max-h-[70vh] overflow-y-auto space-y-2.5">
           {SUPPORTED_LANGUAGES.map((lang: ILanguageOption) => {
-            const isSelected = selectedLanguage === lang.name;
+            const isSelected = selectedLocale === lang.code;
             return (
               <div
                 key={lang.code}
-                onClick={() => setSelectedLanguage(lang.name)}
+                onClick={() => setSelectedLocale(lang.code)}
                 className={`w-full flex items-center justify-between px-4 py-3 sm:py-3.5 rounded-xl cursor-pointer transition-all ${
                   isSelected
                     ? "border-2 border-[#0284C7] bg-sky-50/20 text-slate-900 font-medium shadow-xs"

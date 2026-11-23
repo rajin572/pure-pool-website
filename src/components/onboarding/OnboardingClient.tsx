@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { AllImages } from "@/../public/images/AllImages";
 import Container from "@/components/ui/CustomUi/Container";
+import { errorMessage } from "@/lib/apiRequest";
 import OnboardingStepper from "./OnboardingStepper";
 import Step1Location from "./Step1Location";
 import Step2Specifications from "./Step2Specifications";
@@ -17,29 +19,43 @@ import StepSuccess from "./StepSuccess";
 import {
   FullOnboardingData,
   initialOnboardingData,
+  savePoolRegistration,
 } from "@/service/OnboardingService/OnboardingServiceApi";
 
 interface OnboardingClientProps {
+  /** What the server has saved (blank for a new customer). */
   initialData?: FullOnboardingData;
+  /** The screen the saved progress points to (1 = start, 6 = review, 7 = already submitted). */
   initialStep?: number;
+  /** Set once a first save has created the pool; later saves edit the same pool. */
+  initialPoolId?: string;
 }
+
+const SUBMITTED_STEP = 7;
 
 export const OnboardingClient: React.FC<OnboardingClientProps> = ({
   initialData = initialOnboardingData,
   initialStep = 1,
+  initialPoolId,
 }) => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const stepParam = searchParams.get("step");
 
   const [currentStep, setCurrentStep] = useState<number>(() => {
-    if (stepParam === "review") return 6;
-    if (stepParam === "success") return 7;
-    const parsed = parseInt(stepParam || "1", 10);
-    return isNaN(parsed) ? initialStep : parsed;
+    const wanted = stepParam === "review" ? 6 : stepParam === "success" ? 7 : parseInt(stepParam || "", 10);
+    if (isNaN(wanted) || wanted < 1 || wanted > SUBMITTED_STEP) return initialStep;
+    // The "submitted" screen only shows for an application that really was submitted.
+    if (wanted === SUBMITTED_STEP && initialStep !== SUBMITTED_STEP) return initialStep;
+    return wanted;
   });
 
   const [onboardingData, setOnboardingData] = useState<FullOnboardingData>(initialData);
+  const [poolId, setPoolId] = useState<string | undefined>(initialPoolId);
+  const [isSaving, setIsSaving] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState<string | undefined>();
+  const savingRef = useRef(false);
+  const poolIdRef = useRef<string | undefined>(initialPoolId);
 
   // Sync step changes with URL shallowly
   const updateStep = (stepNumber: number) => {
@@ -49,24 +65,38 @@ export const OnboardingClient: React.FC<OnboardingClientProps> = ({
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  /**
-   * ==============================================================================
-   * REDUX QUERY HOOK / REST API INTEGRATION
-   * ==============================================================================
-   * When connecting to your live backend:
-   *
-   * const [saveOnboardingTrigger, { isLoading }] = useSaveOnboardingMutation();
-   *
-   * const handleCompleteOnboarding = async () => {
-   *   const res = await saveOnboardingTrigger(onboardingData).unwrap();
-   *   if (res.success) {
-   *     updateStep(7); // Show Success
-   *   }
-   * };
-   * ==============================================================================
-   */
-  const handleConfirmReview = () => {
-    updateStep(7);
+  /** POST /onboarding/pool. The first call creates the pool; later calls send its id. */
+  const save = async (data: FullOnboardingData, submit: boolean) => {
+    if (savingRef.current) return null;
+    savingRef.current = true;
+    setIsSaving(true);
+    try {
+      const res = await savePoolRegistration(data, { poolId: poolIdRef.current, submit });
+      if (!res.success) {
+        toast.error(errorMessage(res, "We couldn't save your details."));
+        return null;
+      }
+      poolIdRef.current = res.data.pool._id;
+      setPoolId(res.data.pool._id);
+      return res.data;
+    } finally {
+      savingRef.current = false;
+      setIsSaving(false);
+    }
+  };
+
+  /** A step's "Next": keep the answers, save them as a draft, then move on. */
+  const saveAndGo = async (patch: Partial<FullOnboardingData>, to: number) => {
+    const merged = { ...onboardingData, ...patch };
+    setOnboardingData(merged);
+    if (await save(merged, false)) updateStep(to);
+  };
+
+  const handleConfirmReview = async () => {
+    const saved = await save(onboardingData, true);
+    if (!saved) return;
+    setSubmitMessage(saved.message);
+    updateStep(SUBMITTED_STEP);
   };
 
   return (
@@ -86,8 +116,12 @@ export const OnboardingClient: React.FC<OnboardingClientProps> = ({
           </Link>
           <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-zinc-500">
             <span>Pool Setup Wizard</span>
-            <span className="inline-block size-1.5 rounded-full bg-emerald-500" />
-            <span className="text-emerald-700">In Progress</span>
+            <span
+              className={`inline-block size-1.5 rounded-full ${currentStep === SUBMITTED_STEP ? "bg-blue-500" : "bg-emerald-500"}`}
+            />
+            <span className={currentStep === SUBMITTED_STEP ? "text-blue-700" : "text-emerald-700"}>
+              {currentStep === SUBMITTED_STEP ? "Under review" : "In Progress"}
+            </span>
           </div>
         </header>
 
@@ -104,20 +138,16 @@ export const OnboardingClient: React.FC<OnboardingClientProps> = ({
           {currentStep === 1 && (
             <Step1Location
               initialData={onboardingData.location}
-              onNext={(locData) => {
-                setOnboardingData((prev) => ({ ...prev, location: locData }));
-                updateStep(2);
-              }}
+              isSaving={isSaving}
+              onNext={(location) => saveAndGo({ location }, 2)}
             />
           )}
 
           {currentStep === 2 && (
             <Step2Specifications
               initialData={onboardingData.specifications}
-              onNext={(specData) => {
-                setOnboardingData((prev) => ({ ...prev, specifications: specData }));
-                updateStep(3);
-              }}
+              isSaving={isSaving}
+              onNext={(specifications) => saveAndGo({ specifications }, 3)}
               onBack={() => updateStep(1)}
             />
           )}
@@ -125,10 +155,8 @@ export const OnboardingClient: React.FC<OnboardingClientProps> = ({
           {currentStep === 3 && (
             <Step3Shape
               initialData={onboardingData.shape}
-              onNext={(shapeData) => {
-                setOnboardingData((prev) => ({ ...prev, shape: shapeData }));
-                updateStep(4);
-              }}
+              isSaving={isSaving}
+              onNext={(shape) => saveAndGo({ shape }, 4)}
               onBack={() => updateStep(2)}
             />
           )}
@@ -136,10 +164,9 @@ export const OnboardingClient: React.FC<OnboardingClientProps> = ({
           {currentStep === 4 && (
             <Step4Photos
               initialData={onboardingData.photos}
-              onNext={(photoData) => {
-                setOnboardingData((prev) => ({ ...prev, photos: photoData }));
-                updateStep(5);
-              }}
+              poolId={poolId}
+              isSaving={isSaving}
+              onNext={(photos) => saveAndGo({ photos }, 5)}
               onBack={() => updateStep(3)}
             />
           )}
@@ -147,10 +174,8 @@ export const OnboardingClient: React.FC<OnboardingClientProps> = ({
           {currentStep === 5 && (
             <Step5Equipment
               initialData={onboardingData.equipment}
-              onNext={(equipData) => {
-                setOnboardingData((prev) => ({ ...prev, equipment: equipData }));
-                updateStep(6); // Go to review
-              }}
+              isSaving={isSaving}
+              onNext={(equipment) => saveAndGo({ equipment }, 6)}
               onBack={() => updateStep(4)}
             />
           )}
@@ -161,10 +186,11 @@ export const OnboardingClient: React.FC<OnboardingClientProps> = ({
               onEditStep={(step) => updateStep(step)}
               onBack={() => updateStep(5)}
               onConfirm={handleConfirmReview}
+              isSubmitting={isSaving}
             />
           )}
 
-          {currentStep === 7 && <StepSuccess />}
+          {currentStep === SUBMITTED_STEP && <StepSuccess message={submitMessage} />}
         </div>
 
         {/* Footer info */}
@@ -177,4 +203,3 @@ export const OnboardingClient: React.FC<OnboardingClientProps> = ({
 };
 
 export default OnboardingClient;
-

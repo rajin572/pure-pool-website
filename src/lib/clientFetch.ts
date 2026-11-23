@@ -82,6 +82,7 @@ const PUBLIC_AUTH_PATHS = [
   "/auth/verify-email",
   "/auth/resend-verification",
   "/auth/verify-reset-code",
+  "/auth/change-password", // 401 here means "wrong current password"
 ];
 
 const isPendingReview = async (res: Response) => {

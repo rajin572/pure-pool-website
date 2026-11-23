@@ -5,8 +5,9 @@
  * import anything server-only (`next/headers`, `fetchWithAuth`).
  */
 import Cookies from "js-cookie";
-import { clientFetch, clearClientAuthTokens } from "@/lib/clientFetch";
-import type { IApiResult, IAuthTokens } from "@/types";
+import { clearClientAuthTokens } from "@/lib/clientFetch";
+import { post, request } from "@/lib/apiRequest";
+import type { IAuthTokens } from "@/types";
 
 // ---------- Types (from the Postman example responses) ----------
 
@@ -22,7 +23,9 @@ export interface ISessionUser {
   accountStatus: TAccountStatus;
   emailVerified: boolean;
   preferredLocale?: string;
+  avatarUrl?: string;
   notificationPreferences?: Record<string, boolean>;
+  deletionRequestedAt?: string;
   lastLoginAt?: string;
 }
 
@@ -65,22 +68,6 @@ export const PASSWORD_MIN = 10;
 export const PASSWORD_MAX = 72;
 
 // ---------- Calls ----------
-
-const request = async <T>(path: string, init: RequestInit = {}): Promise<IApiResult<T>> => {
-  try {
-    const res = await clientFetch(path, init);
-    try {
-      return (await res.json()) as IApiResult<T>;
-    } catch {
-      return { success: false, error: { message: `Request failed (${res.status})` } };
-    }
-  } catch {
-    return { success: false, error: { code: "NETWORK", message: "Can't reach the server. Check your connection." } };
-  }
-};
-
-const post = <T>(path: string, body?: unknown) =>
-  request<T>(path, { method: "POST", ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
 
 type TMessage = { message: string };
 

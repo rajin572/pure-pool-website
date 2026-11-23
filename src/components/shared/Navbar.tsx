@@ -8,7 +8,6 @@ import { accountStatusLabel, clearSessionUserCache, useSessionUser } from "@/lib
 import { gsap } from "gsap";
 import { useGSAP } from "@gsap/react";
 import {
-    Bell,
     ChevronDown,
     ClipboardList,
     CreditCard,
@@ -21,6 +20,8 @@ import {
 } from "lucide-react";
 // import useUserData from "@/context/useGetUserData";
 import { ProfileDropdown } from "../profile";
+import UserAvatar from "../profile/UserAvatar";
+import NotificationBell from "./NotificationBell";
 import Container from "../ui/CustomUi/Container";
 import ReusableGradientButton from "../ui/CustomUi/ReusableGradientButton";
 import { AllImages } from "../../../public/images/AllImages";
@@ -165,7 +166,9 @@ const Navbar = () => {
     const user = sessionUser
         ? { fullName: sessionUser.name, email: sessionUser.email, statusLabel: accountStatusLabel(sessionUser) }
         : null;
-    const navItems = user ? LOGGED_IN_NAV_ITEMS : LOGGED_OUT_NAV_ITEMS;
+    // An unverified email gets the visitor menu and no bell until the code is entered.
+    const verified = !!sessionUser?.emailVerified;
+    const navItems = user && verified ? LOGGED_IN_NAV_ITEMS : LOGGED_OUT_NAV_ITEMS;
 
     // Runs after LogoutModal has called POST /auth/logout and cleared the cookies.
     const handleLogout = () => {
@@ -268,29 +271,14 @@ const Navbar = () => {
                     <div className="flex items-center gap-2 sm:gap-2.5 xl:gap-3 shrink-0">
                         {user ? (
                             <div className="flex items-center gap-2 sm:gap-2.5 xl:gap-3">
-                                {/* Notifications Button */}
-                                <button
-                                    type="button"
-                                    aria-label="Notifications"
-                                    className={`relative flex items-center justify-center size-8 xl:size-9 rounded-full border transition-all duration-200 shrink-0 cursor-pointer ${scrolled
-                                        ? "border-slate-200/90 text-slate-700 bg-slate-100/80 hover:bg-slate-200/80 hover:text-slate-900"
-                                        : "border-white/20 text-white/90 bg-white/10 hover:bg-white/20 hover:text-white backdrop-blur-md"
-                                        }`}
-                                >
-                                    <Bell className="size-4 xl:size-4.5" />
-                                    <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-sky-500 ring-2 ring-white" />
-                                </button>
+                                {/* Notifications: unread badge + list (GET /notifications) */}
+                                {verified && <NotificationBell scrolled={scrolled} />}
 
                                 {/* User Profile Dropdown */}
                                 <ProfileDropdown
                                     isOpen={dropdownOpen}
                                     onOpenChange={setDropdownOpen}
-                                    user={{
-                                        fullName: user?.fullName || "",
-                                        email: user?.email || "",
-                                        avatar: "/images/userAvatar.png",
-                                        plan: user?.statusLabel || "",
-                                    }}
+                                    user={sessionUser!}
                                     onLogout={handleLogout}
                                     trigger={
                                         <div
@@ -302,13 +290,7 @@ const Navbar = () => {
                                             {/* Avatar with status */}
                                             <div className="relative shrink-0">
                                                 <div className="size-7.5 xl:size-8 rounded-full overflow-hidden bg-gradient-to-tr from-sky-500 via-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shadow-xs ring-1 ring-white/30 relative">
-                                                    <Image
-                                                        src="/images/userAvatar.png"
-                                                        alt={user?.fullName || "User"}
-                                                        fill
-                                                        className="object-cover"
-                                                        sizes="32px"
-                                                    />
+                                                    <UserAvatar src={sessionUser?.avatarUrl} alt={user?.fullName || "User"} />
                                                 </div>
                                                 <span className="absolute -bottom-0.5 -right-0.5 size-2 rounded-full bg-emerald-500 ring-2 ring-white" />
                                             </div>

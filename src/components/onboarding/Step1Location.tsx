@@ -13,17 +13,24 @@ import { OnboardingLocationData } from "@/service/OnboardingService/OnboardingSe
 interface Step1LocationProps {
   initialData: OnboardingLocationData;
   onNext: (data: OnboardingLocationData) => void;
+  isSaving?: boolean;
 }
 
 export const Step1Location: React.FC<Step1LocationProps> = ({
   initialData,
   onNext,
+  isSaving = false,
 }) => {
   const form = useForm<OnboardingLocationData>({
     defaultValues: initialData,
   });
 
   const onSubmit = (data: OnboardingLocationData) => {
+    // The address is the one thing the backend needs to create the pool.
+    if (!data.poolAddress.trim()) {
+      form.setError("poolAddress", { type: "required", message: "Enter the pool address" });
+      return;
+    }
     onNext(data);
   };
 
@@ -83,7 +90,7 @@ export const Step1Location: React.FC<Step1LocationProps> = ({
         />
 
         {/* Action Row */}
-        <OnboardingActionRow showBackButton={false} />
+        <OnboardingActionRow showBackButton={false} isLoading={isSaving} loadingText="Saving..." />
       </ReuseableForm>
     </div>
   );

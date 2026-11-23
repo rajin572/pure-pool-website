@@ -6,13 +6,18 @@ import {
   ReuseableForm,
   FormInput,
 } from "@/components/ui/CustomUi/ReuseForm/Form";
-import { OnboardingSpecificationsData } from "@/service/OnboardingService/OnboardingServiceApi";
+import {
+  OnboardingSpecificationsData,
+  parseLitres,
+  parseMeasure,
+} from "@/service/OnboardingService/OnboardingServiceApi";
 import OnboardingActionRow from "./OnboardingActionRow";
 
 interface Step2SpecificationsProps {
   initialData: OnboardingSpecificationsData;
   onNext: (data: OnboardingSpecificationsData) => void;
   onBack: () => void;
+  isSaving?: boolean;
 }
 
 const poolTypeOptions: Array<{ id: OnboardingSpecificationsData["poolType"]; label: string }> = [
@@ -40,6 +45,7 @@ export const Step2Specifications: React.FC<Step2SpecificationsProps> = ({
   initialData,
   onNext,
   onBack,
+  isSaving = false,
 }) => {
   const form = useForm<OnboardingSpecificationsData>({
     defaultValues: initialData,
@@ -50,7 +56,20 @@ export const Step2Specifications: React.FC<Step2SpecificationsProps> = ({
   const surfaceFinish = useWatch({ control: form.control, name: "surfaceFinish" });
 
   const onSubmit = (data: OnboardingSpecificationsData) => {
-    onNext(data);
+    // Everything here is optional, but what is typed must be a positive number.
+    let valid = true;
+    const need = (name: "approximateVolume" | "lengthMeters" | "widthMeters" | "depthMeters", ok: boolean, message: string) => {
+      if (!ok) {
+        form.setError(name, { type: "validate", message });
+        valid = false;
+      }
+    };
+    const typed = (v?: string) => !!v?.trim();
+    need("approximateVolume", !typed(data.approximateVolume) || !!parseLitres(data.approximateVolume), "Enter litres as a number");
+    need("lengthMeters", !typed(data.lengthMeters) || !!parseMeasure(data.lengthMeters), "Enter metres as a number");
+    need("widthMeters", !typed(data.widthMeters) || !!parseMeasure(data.widthMeters), "Enter metres as a number");
+    need("depthMeters", !typed(data.depthMeters) || !!parseMeasure(data.depthMeters), "Enter metres as a number");
+    if (valid) onNext(data);
   };
 
   return (
@@ -96,8 +115,9 @@ export const Step2Specifications: React.FC<Step2SpecificationsProps> = ({
           <FormInput
             control={form.control}
             name="approximateVolume"
-            label="Approximate Volume"
-            placeholder="e.g. 55,000 litres"
+            label="Approximate Volume (litres)"
+            placeholder="e.g. 55000"
+            inputMode="numeric"
           />
 
           <div className="flex flex-col gap-1.5">
@@ -175,7 +195,7 @@ export const Step2Specifications: React.FC<Step2SpecificationsProps> = ({
         </div>
 
         {/* Action Row */}
-        <OnboardingActionRow onBack={onBack} />
+        <OnboardingActionRow onBack={onBack} isLoading={isSaving} loadingText="Saving..." />
       </ReuseableForm>
     </div>
   );

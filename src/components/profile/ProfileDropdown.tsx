@@ -1,27 +1,33 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import Image from "next/image";
 import Link from "next/link";
+import { toast } from "sonner";
 import {
   Pencil,
   Lock,
   Droplet,
   Globe,
   LogOut,
+  MailCheck,
+  Trash2,
 } from "lucide-react";
+import { errorMessage } from "@/lib/apiRequest";
+import type { ISessionUser } from "@/service/AuthService/AuthServiceApi";
 import {
-  IUserProfile,
-  MOCK_USER_PROFILE,
+  languageName,
+  requestEmailVerification,
 } from "@/service/ProfileService/ProfileServiceApi";
 import EditProfileModal from "./EditProfileModal";
 import LanguageModal from "./LanguageModal";
 import UpdatePasswordModal from "./UpdatePasswordModal";
+import DeleteAccountModal from "./DeleteAccountModal";
 import LogoutModal from "./LogoutModal";
+import UserAvatar from "./UserAvatar";
 
 export interface ProfileDropdownProps {
-  user?: Partial<IUserProfile> | null;
-  currentLanguage?: string;
+  /** The signed-in user from GET /auth/me. */
+  user: ISessionUser;
   trigger?: React.ReactNode;
   isOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -31,8 +37,7 @@ export interface ProfileDropdownProps {
 }
 
 export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
-  user = MOCK_USER_PROFILE,
-  currentLanguage = "English",
+  user,
   trigger,
   isOpen: controlledIsOpen,
   onOpenChange,
@@ -55,17 +60,13 @@ export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
     [onOpenChange]
   );
 
-  const [currentUser, setCurrentUser] = useState<IUserProfile>({
-    ...MOCK_USER_PROFILE,
-    ...(user || {}),
-  });
-  const [activeLanguage, setActiveLanguage] = useState<string>(currentLanguage);
-
   // Modal open states (persisted outside the dropdown popup)
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [updatePasswordOpen, setUpdatePasswordOpen] = useState(false);
   const [languageOpen, setLanguageOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [sendingVerification, setSendingVerification] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -122,6 +123,29 @@ export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
     setLogoutOpen(true);
   };
 
+  const handleOpenDelete = () => {
+    setDropdownOpen(false);
+    onClose?.();
+    setDeleteOpen(true);
+  };
+
+  // POST /auth/request-verification emails a new code; the code is entered on the verify page.
+  const handleVerifyEmail = async () => {
+    setDropdownOpen(false);
+    onClose?.();
+    setSendingVerification(true);
+    const res = await requestEmailVerification();
+    setSendingVerification(false);
+    if (!res.success) {
+      toast.error(errorMessage(res, "We couldn't send the code."));
+      return;
+    }
+    toast.success("We sent a code to your email.");
+    window.location.assign(
+      new URL(`/register/verify?email=${encodeURIComponent(user.email)}`, window.location.origin),
+    );
+  };
+
   const renderDropdownCard = () => (
     <div
       className={`w-72 sm:w-80 bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-[0_20px_50px_rgba(0,0,0,0.12),0_8px_20px_rgba(0,0,0,0.06)] border border-slate-200/90 text-slate-800 animate-in fade-in-0 zoom-in-95 duration-150 ${className}`}
@@ -129,20 +153,14 @@ export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
       {/* User Profile Header */}
       <div className="flex items-center gap-3 px-2 py-2">
         <div className="relative size-11 sm:size-12 rounded-full overflow-hidden bg-slate-100 ring-2 ring-slate-100 shrink-0">
-          <Image
-            src={currentUser.avatar || "/images/userAvatar.png"}
-            alt={currentUser.fullName}
-            fill
-            className="object-cover"
-            sizes="48px"
-          />
+          <UserAvatar src={user.avatarUrl} alt={user.name} />
         </div>
         <div className="min-w-0 flex-1">
           <h4 className="text-[15px] font-semibold text-slate-900 leading-snug truncate">
-            {currentUser.fullName}
+            {user.name}
           </h4>
           <p className="text-[13px] text-slate-500 leading-snug truncate mt-0.5">
-            {currentUser.email}
+            {user.email}
           </p>
         </div>
       </div>
@@ -152,6 +170,9 @@ export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
 
       {/* Menu Items List */}
       <div className="space-y-0.5">
+        {/* Until the email is verified the account only gets "Verify email" and "Log out". */}
+        {user.emailVerified && (
+        <>
         {/* Edit Name */}
         <button
           type="button"
@@ -204,9 +225,45 @@ export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
             </span>
           </div>
           <span className="text-[13px] sm:text-[14px] text-slate-400 font-normal">
-            {activeLanguage}
+            {languageName(user.preferredLocale)}
           </span>
         </button>
+        </>
+        )}
+
+        {/* Verify email: only while the address is unverified */}
+        {!user.emailVerified && (
+          <>
+          <p className="px-3 py-2 text-[13px] leading-snug text-amber-700 bg-amber-50 rounded-xl">
+            Your email isn&apos;t verified yet. Verify it to unlock your account.
+          </p>
+          <button
+            type="button"
+            onClick={handleVerifyEmail}
+            disabled={sendingVerification}
+            className="w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl text-left hover:bg-slate-50 transition-colors cursor-pointer group disabled:opacity-60"
+          >
+            <MailCheck className="size-4.5 text-slate-600 group-hover:text-slate-900 transition-colors" />
+            <span className="text-[14px] sm:text-[15px] font-medium text-slate-800 group-hover:text-slate-950">
+              Verify email
+            </span>
+          </button>
+          </>
+        )}
+
+        {/* Delete account */}
+        {user.emailVerified && (
+        <button
+          type="button"
+          onClick={handleOpenDelete}
+          className="w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl text-left hover:bg-slate-50 transition-colors cursor-pointer group"
+        >
+          <Trash2 className="size-4.5 text-slate-600 group-hover:text-slate-900 transition-colors" />
+          <span className="text-[14px] sm:text-[15px] font-medium text-slate-800 group-hover:text-slate-950">
+            Delete account
+          </span>
+        </button>
+        )}
       </div>
 
       {/* Divider */}
@@ -247,12 +304,13 @@ export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
         isDropdownOpen && renderDropdownCard()
       )}
 
-      {/* 4 Modals */}
+      {/* Modals */}
+      {/* key: remount on open so each modal starts from the server's values */}
       <EditProfileModal
+        key={`edit-${editProfileOpen}`}
         open={editProfileOpen}
         onOpenChange={setEditProfileOpen}
-        user={currentUser}
-        onProfileUpdated={(updated) => setCurrentUser(updated)}
+        user={user}
       />
 
       <UpdatePasswordModal
@@ -261,11 +319,13 @@ export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({
       />
 
       <LanguageModal
+        key={`lang-${languageOpen}`}
         open={languageOpen}
         onOpenChange={setLanguageOpen}
-        currentLanguage={activeLanguage}
-        onLanguageChanged={(newLang) => setActiveLanguage(newLang)}
+        currentLocale={user.preferredLocale}
       />
+
+      <DeleteAccountModal open={deleteOpen} onOpenChange={setDeleteOpen} />
 
       <LogoutModal
         open={logoutOpen}

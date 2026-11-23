@@ -15,6 +15,12 @@ import { getSessionUser } from "@/service/AuthService/AuthServiceApi";
 /** Empties the shown user (call after the auth cookies are cleared). */
 export const clearSessionUserCache = forgetSessionUser;
 
+/** Shows a user the backend just returned (for example after a profile edit) everywhere at once. */
+export const applySessionUser = (user: Parameters<typeof storeSessionUser>[1]) => {
+  const token = getClientAccessToken();
+  if (token) storeSessionUser(token, user);
+};
+
 /**
  * The signed-in customer, or null when signed out (or still loading). Every component that
  * calls this sees the same user, and it empties as soon as the cookies are cleared (logout,
@@ -52,6 +58,7 @@ export const useSessionUser = () => {
 
 /** Account-status label shown under the name (the plan comes from contracts, task 07). */
 export const accountStatusLabel = (user: ReturnType<typeof useSessionUser>) => {
+  if (user && !user.emailVerified) return "Email not verified";
   switch (user?.accountStatus) {
     case "APPROVED":
       return "Customer";

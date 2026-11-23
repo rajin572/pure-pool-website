@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
-import Image from "next/image";
+import React from "react";
 import { Edit2, CheckCircle2 } from "lucide-react";
 import OnboardingActionRow from "./OnboardingActionRow";
-import { FullOnboardingData } from "@/service/OnboardingService/OnboardingServiceApi";
+import { resolveImageUrl } from "@/helpers/config/envConfig";
+import { FullOnboardingData, parseLitres } from "@/service/OnboardingService/OnboardingServiceApi";
 
 const NOT_PROVIDED = "Not provided";
 
@@ -12,21 +12,22 @@ const NOT_PROVIDED = "Not provided";
 const pretty = (value?: string) =>
   !value ? NOT_PROVIDED : value === "unknown" ? "Not sure" : value.replace(/_/g, " ");
 
-/** Short list of the equipment the customer actually picked; unknown/none are left out. */
+/** The equipment the customer ticked, in plain words. */
 const equipmentSummary = (e: FullOnboardingData["equipment"]) =>
   [
-    e.pumpType === "variable_speed" ? "Variable-speed pump" : e.pumpType === "single_speed" ? "Single-speed pump" : "",
-    { sand: "Sand filter", glass: "Glass media filter", cartridge: "Cartridge filter", de: "DE filter", unknown: "" }[e.filterType],
-    { heat_pump: "Heat pump", solar: "Solar heating", none: "", unknown: "" }[e.heating],
-    e.hasSaltChlorinator ? "Salt chlorinator" : "",
-    { robot: "Robot cleaner", suction: "Suction cleaner", manual: "", none: "" }[e.cleanerType],
+    e.hasSaltChlorinator ? "Saltwater chlorinator" : "",
+    e.hasHeatPump ? "Heat pump / heater" : "",
+    e.hasAutoCover ? "Automatic safety cover" : "",
+    e.hasCleanerRobot ? "Robotic vacuum" : "",
   ].filter(Boolean);
 
 interface StepReviewProps {
   data: FullOnboardingData;
   onEditStep: (stepNumber: number) => void;
   onBack: () => void;
-  onConfirm: () => void;
+  /** Saves with `submit: true` (the parent shows errors and moves to the next screen). */
+  onConfirm: () => void | Promise<void>;
+  isSubmitting?: boolean;
 }
 
 export const StepReview: React.FC<StepReviewProps> = ({
@@ -34,28 +35,16 @@ export const StepReview: React.FC<StepReviewProps> = ({
   onEditStep,
   onBack,
   onConfirm,
+  isSubmitting = false,
 }) => {
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-
-  const photos = [data.photos.poolOverviewPhoto, data.photos.equipmentPhoto, data.photos.accessGatePhoto].filter(
-    (src): src is string => !!src
-  );
+  const photos = data.photos.urls;
   const equipment = equipmentSummary(data.equipment);
-  const features = [
-    data.shape.hasSpa && "Spa",
-    data.shape.hasInfinityEdge && "Infinity edge",
-    data.shape.hasAutoCover && "Automatic cover",
-    data.shape.hasLighting && "Pool lighting",
-  ].filter(Boolean);
   const { lengthMeters, widthMeters, depthMeters } = data.specifications;
   const hasDimensions = !!(lengthMeters || widthMeters || depthMeters);
+  const litres = parseLitres(data.specifications.approximateVolume);
 
   const handleConfirm = () => {
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      onConfirm();
-    }, 600);
+    void onConfirm();
   };
 
   return (
@@ -135,7 +124,7 @@ export const StepReview: React.FC<StepReviewProps> = ({
             <div className="flex justify-between py-1 border-b border-gray-50">
               <span className="text-zinc-500 font-medium">Approx. Volume</span>
               <span className="text-zinc-900 font-semibold">
-                {data.specifications.approximateVolume ? `${data.specifications.approximateVolume} L` : NOT_PROVIDED}
+                {litres ? `${litres.toLocaleString("en-GB")} L` : NOT_PROVIDED}
               </span>
             </div>
             <div className="flex justify-between py-1 border-b border-gray-50">
@@ -178,16 +167,10 @@ export const StepReview: React.FC<StepReviewProps> = ({
                 {pretty(data.shape.shape)}
               </span>
             </div>
-            <div className="flex justify-between py-1 border-b border-gray-50">
+            <div className="flex justify-between py-1">
               <span className="text-zinc-500 font-medium">Finish Material</span>
               <span className="text-zinc-900 font-semibold capitalize">
                 {pretty(data.specifications.surfaceFinish)}
-              </span>
-            </div>
-            <div className="flex justify-between py-1">
-              <span className="text-zinc-500 font-medium">Special Features</span>
-              <span className="text-zinc-900 font-semibold text-right">
-                {features.length ? features.join(", ") : "None selected"}
               </span>
             </div>
           </div>
@@ -212,8 +195,9 @@ export const StepReview: React.FC<StepReviewProps> = ({
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
               {photos.map((src, i) => (
-                <div key={src + i} className="relative size-14 rounded-xl overflow-hidden border border-gray-200">
-                  <Image src={src} alt={`Pool photo ${i + 1}`} fill className="object-cover" />
+                <div key={src} className="relative size-14 rounded-xl overflow-hidden border border-gray-200">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={resolveImageUrl(src)} alt={`Pool photo ${i + 1}`} className="size-full object-cover" />
                 </div>
               ))}
               <span className="text-xs text-zinc-500 font-medium">
@@ -227,6 +211,11 @@ export const StepReview: React.FC<StepReviewProps> = ({
               <span className="font-semibold text-zinc-800">Installed equipment:</span>{" "}
               {equipment.length ? `${equipment.join(", ")}.` : NOT_PROVIDED}
             </div>
+            {data.equipment.notes && (
+              <div className="text-xs sm:text-sm text-zinc-600 whitespace-pre-line">
+                <span className="font-semibold text-zinc-800">Notes:</span> {data.equipment.notes}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -235,7 +224,7 @@ export const StepReview: React.FC<StepReviewProps> = ({
       <div className="p-4 sm:p-5 rounded-2xl bg-blue-50 border border-blue-100 flex items-center gap-3.5">
         <CheckCircle2 className="w-6 h-6 text-blue-600 shrink-0" />
         <span className="text-sm sm:text-base text-zinc-700 font-medium">
-          Upon submitting, your dedicated Madrid technician will be assigned to verify all equipment on your first visit.
+          Once you submit, our team reviews your details and emails you as soon as your account is active.
         </span>
       </div>
 
@@ -246,8 +235,8 @@ export const StepReview: React.FC<StepReviewProps> = ({
         onNext={handleConfirm}
         disabled={isSubmitting}
         isLoading={isSubmitting}
-        loadingText="Setting up pool..."
-        nextText="Confirm & Set Up Pool"
+        loadingText="Submitting..."
+        nextText="Submit for review"
         nextButtonClassName="sm:w-64"
       />
     </div>

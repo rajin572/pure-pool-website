@@ -14,38 +14,19 @@ interface Step5EquipmentProps {
   initialData: OnboardingEquipmentData;
   onNext: (data: OnboardingEquipmentData) => void;
   onBack: () => void;
-}
-
-interface EquipmentFormValues {
-  equipmentNotes: string;
-  hasSaltChlorinator: boolean;
-  hasHeatPump: boolean;
-  hasAutoCover: boolean;
-  hasCleanerRobot: boolean;
+  isSaving?: boolean;
 }
 
 export const Step5Equipment: React.FC<Step5EquipmentProps> = ({
   initialData,
   onNext,
   onBack,
+  isSaving = false,
 }) => {
-  const form = useForm<EquipmentFormValues>({
-    defaultValues: {
-      equipmentNotes: "",
-      hasSaltChlorinator: initialData.hasSaltChlorinator ?? false,
-      hasHeatPump: initialData.heating === "heat_pump",
-      hasAutoCover: false,
-      hasCleanerRobot: initialData.cleanerType === "robot",
-    },
-  });
+  const form = useForm<OnboardingEquipmentData>({ defaultValues: initialData });
 
-  const onSubmit = (values: EquipmentFormValues) => {
-    onNext({
-      ...initialData,
-      hasSaltChlorinator: values.hasSaltChlorinator,
-      heating: values.hasHeatPump ? "heat_pump" : "none",
-      cleanerType: values.hasCleanerRobot ? "robot" : "manual",
-    });
+  const onSubmit = (values: OnboardingEquipmentData) => {
+    onNext({ ...values, notes: values.notes.trim() });
   };
 
   return (
@@ -64,7 +45,7 @@ export const Step5Equipment: React.FC<Step5EquipmentProps> = ({
         {/* Equipment Notes Textarea */}
         <FormTextarea
           control={form.control}
-          name="equipmentNotes"
+          name="notes"
           label="Equipment details (optional)"
           placeholder="e.g. AstralPool 1HP pump, sand filter, electric heat pump, automatic pool cover…"
           rows={5}
@@ -109,6 +90,8 @@ export const Step5Equipment: React.FC<Step5EquipmentProps> = ({
         <OnboardingActionRow
           onBack={onBack}
           isRegReq
+          isLoading={isSaving}
+          loadingText="Saving..."
           nextButtonClassName="sm:w-60"
         />
       </ReuseableForm>

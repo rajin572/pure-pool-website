@@ -8,6 +8,7 @@ interface Step3ShapeProps {
   initialData: OnboardingShapeData;
   onNext: (data: OnboardingShapeData) => void;
   onBack: () => void;
+  isSaving?: boolean;
 }
 
 interface ShapeOption {
@@ -222,6 +223,7 @@ export const Step3Shape: React.FC<Step3ShapeProps> = ({
   initialData,
   onNext,
   onBack,
+  isSaving = false,
 }) => {
   const [selectedShape, setSelectedShape] = useState<OnboardingShapeData["shape"]>(
     initialData.shape || "rectangular"
@@ -229,10 +231,7 @@ export const Step3Shape: React.FC<Step3ShapeProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onNext({
-      ...initialData,
-      shape: selectedShape,
-    });
+    onNext({ shape: selectedShape });
   };
 
   return (
@@ -283,7 +282,7 @@ export const Step3Shape: React.FC<Step3ShapeProps> = ({
         </div>
 
         {/* Action Row */}
-        <OnboardingActionRow onBack={onBack} />
+        <OnboardingActionRow onBack={onBack} isLoading={isSaving} loadingText="Saving..." />
       </form>
     </div>
   );

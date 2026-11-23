@@ -1,36 +1,59 @@
 "use client";
 
-import React, { useState } from "react";
-import Image from "next/image";
-import { Upload, X, Plus } from "lucide-react";
-import { AllImages } from "@/../public/images/AllImages";
+import React, { useRef, useState } from "react";
+import { toast } from "sonner";
+import { Upload, X, Plus, Loader2 } from "lucide-react";
 import OnboardingActionRow from "./OnboardingActionRow";
-import { OnboardingPhotosData } from "@/service/OnboardingService/OnboardingServiceApi";
+import { resolveImageUrl } from "@/helpers/config/envConfig";
+import { errorMessage } from "@/lib/apiRequest";
+import { MAX_PHOTOS, OnboardingPhotosData } from "@/service/OnboardingService/OnboardingServiceApi";
+import { uploadFiles, validateImages } from "@/service/UploadService/UploadServiceApi";
 
 interface Step4PhotosProps {
   initialData: OnboardingPhotosData;
+  /** Lets the backend check the customer may attach files to this pool (set after the first save). */
+  poolId?: string;
   onNext: (data: OnboardingPhotosData) => void;
   onBack: () => void;
+  isSaving?: boolean;
 }
 
 export const Step4Photos: React.FC<Step4PhotosProps> = ({
   initialData,
+  poolId,
   onNext,
   onBack,
+  isSaving = false,
 }) => {
-  // Starts with whatever was already added (nothing for a new onboarding).
-  const [photos, setPhotos] = useState<string[]>(() =>
-    [initialData.poolOverviewPhoto, initialData.equipmentPhoto, initialData.accessGatePhoto].filter(
-      (src): src is string => !!src
-    )
-  );
+  // The URLs already stored for this pool (empty for a new customer).
+  const [photos, setPhotos] = useState<string[]>(initialData.urls);
+  const [uploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleAddSamplePhoto = () => {
-    if (photos.length >= 4) return;
-    // Placeholder picker until the real upload is wired (project-docs task for files).
-    const poolSources = [AllImages.pool1.src, AllImages.pool2.src, AllImages.pool3.src, AllImages.pool4.src];
-    const nextPhoto = poolSources[photos.length] || AllImages.myPool.src;
-    setPhotos([...photos, nextPhoto]);
+  /** POST /uploads with the chosen files, up to the free slots; the returned URLs are kept. */
+  const addFiles = async (picked: File[]) => {
+    if (uploading || picked.length === 0) return;
+    const room = MAX_PHOTOS - photos.length;
+    if (room <= 0) {
+      toast.error(`You can add up to ${MAX_PHOTOS} photos.`);
+      return;
+    }
+    const files = picked.slice(0, room);
+    if (picked.length > room) toast.info(`Only ${room} more photo${room > 1 ? "s" : ""} fit, the rest were skipped.`);
+    const problem = validateImages(files);
+    if (problem) {
+      toast.error(problem);
+      return;
+    }
+    setUploading(true);
+    const res = await uploadFiles(files, poolId);
+    setUploading(false);
+    if (!res.success) {
+      toast.error(errorMessage(res, "The photos could not be uploaded."));
+      return;
+    }
+    setPhotos((cur) => [...cur, ...res.data.map((f) => f.url)].slice(0, MAX_PHOTOS));
   };
 
   const handleRemovePhoto = (index: number) => {
@@ -39,12 +62,8 @@ export const Step4Photos: React.FC<Step4PhotosProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onNext({
-      ...initialData,
-      poolOverviewPhoto: photos[0] || "",
-      equipmentPhoto: photos[1] || "",
-      accessGatePhoto: photos[2] || "",
-    });
+    if (uploading) return;
+    onNext({ urls: photos });
   };
 
   return (
@@ -55,45 +74,71 @@ export const Step4Photos: React.FC<Step4PhotosProps> = ({
           Pool photos
         </h2>
         <p className="text-zinc-600 text-base font-medium font-['Onest'] leading-relaxed">
-          Add up to 4 photos of your pool and pump room (optional).
+          Add up to {MAX_PHOTOS} photos of your pool and pump room (optional).
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-8">
+        <input
+          ref={inputRef}
+          type="file"
+          multiple
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={(e) => {
+            const files = Array.from(e.target.files ?? []);
+            e.target.value = "";
+            void addFiles(files);
+          }}
+        />
+
         {/* Upload Dropzone */}
         <div
-          onClick={handleAddSamplePhoto}
-          className="w-full h-52 sm:h-56 bg-sky-50 rounded-2xl outline outline-[1.5px] outline-dashed outline-offset-[-1.5px] outline-blue-600 flex flex-col justify-center items-center gap-2.5 p-6 cursor-pointer hover:bg-sky-100/60 transition-colors group select-none"
+          role="button"
+          tabIndex={0}
+          aria-label="Add photos"
+          onClick={() => inputRef.current?.click()}
+          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), inputRef.current?.click())}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragging(false);
+            void addFiles(Array.from(e.dataTransfer.files));
+          }}
+          className={`w-full h-52 sm:h-56 rounded-2xl outline outline-[1.5px] outline-dashed outline-offset-[-1.5px] outline-blue-600 flex flex-col justify-center items-center gap-2.5 p-6 cursor-pointer transition-colors group select-none ${dragging ? "bg-sky-100" : "bg-sky-50 hover:bg-sky-100/60"}`}
         >
           <div className="p-3 bg-white rounded-2xl shadow-sm text-blue-600 group-hover:scale-110 transition-transform">
-            <Upload className="w-8 h-8" />
+            {uploading ? <Loader2 className="w-8 h-8 animate-spin" /> : <Upload className="w-8 h-8" />}
           </div>
           <div className="text-zinc-900 text-base sm:text-lg font-semibold font-['Onest'] text-center">
-            Drag &amp; drop your photos here
+            {uploading ? "Uploading…" : "Drag & drop your photos here"}
           </div>
           <div className="text-zinc-500 text-xs sm:text-sm font-medium font-['Onest'] text-center">
-            or click to browse &mdash; PNG, JPG, WEBP up to 5MB each
+            or click to browse &mdash; JPG, PNG, WEBP up to 8MB each
           </div>
         </div>
 
         {/* Added Photos Grid */}
         <div className="flex flex-col gap-3">
           <div className="text-zinc-900 text-base font-semibold font-['Onest']">
-            Added photos ({photos.length} of 4)
+            Added photos ({photos.length} of {MAX_PHOTOS})
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {photos.map((src, i) => (
               <div
-                key={i}
+                key={src}
                 className="relative h-28 sm:h-32 rounded-xl overflow-hidden border border-gray-200 group shadow-sm"
               >
-                <Image
-                  src={src}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={resolveImageUrl(src)}
                   alt={`Pool photo ${i + 1}`}
-                  fill
-                  sizes="200px"
-                  className="object-cover object-center group-hover:scale-105 transition-transform duration-300"
+                  className="size-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
                 />
                 <button
                   type="button"
@@ -106,11 +151,12 @@ export const Step4Photos: React.FC<Step4PhotosProps> = ({
               </div>
             ))}
 
-            {Array.from({ length: Math.max(0, 4 - photos.length) }).map((_, i) => (
+            {Array.from({ length: Math.max(0, MAX_PHOTOS - photos.length) }).map((_, i) => (
               <button
                 key={`empty-${i}`}
                 type="button"
-                onClick={handleAddSamplePhoto}
+                onClick={() => inputRef.current?.click()}
+                aria-label="Add a photo"
                 className="h-28 sm:h-32 rounded-xl border border-dashed border-gray-200 bg-gray-50/50 hover:bg-gray-100 flex items-center justify-center text-zinc-400 hover:text-blue-600 transition-colors cursor-pointer"
               >
                 <Plus className="w-6 h-6" />
@@ -120,11 +166,15 @@ export const Step4Photos: React.FC<Step4PhotosProps> = ({
         </div>
 
         {/* Action Row */}
-        <OnboardingActionRow onBack={onBack} />
+        <OnboardingActionRow
+          onBack={onBack}
+          isLoading={isSaving}
+          loadingText="Saving..."
+          disabled={uploading}
+        />
       </form>
     </div>
   );
 };
 
 export default Step4Photos;
-

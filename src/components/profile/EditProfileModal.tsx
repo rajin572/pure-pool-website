@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useRef } from "react";
-import Image from "next/image";
+import React, { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { toast } from "sonner";
 import { User, Mail, Phone, Lock, Camera, AlertCircle } from "lucide-react";
 import {
   Dialog,
@@ -15,15 +15,17 @@ import {
 import ReuseableForm from "@/components/ui/CustomUi/ReuseForm/ReuseableForm";
 import { FormInput } from "@/components/ui/CustomUi/ReuseForm/Form";
 import { Button } from "@/components/ui/button";
-import {
-  IUserProfile,
-  updateProfileApi,
-} from "@/service/ProfileService/ProfileServiceApi";
+import UserAvatar from "./UserAvatar";
+import { errorMessage } from "@/lib/apiRequest";
+import { applySessionUser } from "@/lib/useSessionUser";
+import type { ISessionUser } from "@/service/AuthService/AuthServiceApi";
+import { updateProfile } from "@/service/ProfileService/ProfileServiceApi";
+import { uploadFiles, validateImages } from "@/service/UploadService/UploadServiceApi";
 
 const editProfileSchema = z.object({
-  fullName: z.string().min(2, "Full name must be at least 2 characters"),
-  email: z.string().email(),
-  phoneNumber: z.string().min(6, "Phone number is required"),
+  fullName: z.string().trim().min(2, "Full name must be at least 2 characters"),
+  email: z.string(),
+  phoneNumber: z.string(),
 });
 
 type EditProfileFormData = z.infer<typeof editProfileSchema>;
@@ -31,58 +33,69 @@ type EditProfileFormData = z.infer<typeof editProfileSchema>;
 export interface EditProfileModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  user: IUserProfile;
-  onProfileUpdated?: (updatedUser: IUserProfile) => void;
+  user: ISessionUser;
 }
 
-export const EditProfileModal: React.FC<EditProfileModalProps> = ({
-  open,
-  onOpenChange,
-  user,
-  onProfileUpdated,
-}) => {
-  const [avatarPreview, setAvatarPreview] = useState<string>(
-    user.avatar || "/images/userAvatar.png"
-  );
+export const EditProfileModal: React.FC<EditProfileModalProps> = ({ open, onOpenChange, user }) => {
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<EditProfileFormData>({
     resolver: zodResolver(editProfileSchema),
-    defaultValues: {
-      fullName: user.fullName || "Juan Pérez Martínez",
-      email: user.email || "juan.perez.m92@gmail.com",
-      phoneNumber: user.phoneNumber || "+34 612 847 395",
-    },
+    defaultValues: { fullName: user.name, email: user.email, phoneNumber: user.phone ?? "" },
   });
+
+  // The parent remounts this modal every time it opens (key), so it always starts from what
+  // the server says, never from a half-finished edit.
+  useEffect(() => {
+    return () => {
+      if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+    };
+  }, [avatarPreview]);
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setAvatarFile(file);
-      const url = URL.createObjectURL(file);
-      setAvatarPreview(url);
+    e.target.value = "";
+    if (!file) return;
+    const problem = validateImages([file]);
+    if (problem) {
+      toast.error(problem);
+      return;
     }
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
   };
 
   const onSubmit = async (data: EditProfileFormData) => {
-    try {
-      setIsSubmitting(true);
-      // API call (ready for backend)
-      // const res = await updateProfileApi({ fullName: data.fullName, avatar: avatarFile || undefined });
-      await updateProfileApi({ fullName: data.fullName, avatar: avatarFile || undefined });
-      
-      if (onProfileUpdated) {
-        onProfileUpdated({
-          ...user,
-          fullName: data.fullName,
-          avatar: avatarPreview,
-        });
-      }
+    const nameChanged = data.fullName.trim() !== user.name;
+    if (!nameChanged && !avatarFile) {
       onOpenChange(false);
-    } catch (error) {
-      console.error("Failed to update profile", error);
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      let avatarUrl: string | undefined;
+      if (avatarFile) {
+        const up = await uploadFiles([avatarFile]);
+        if (!up.success || !up.data[0]) {
+          toast.error(errorMessage(up, "The photo could not be uploaded."));
+          return;
+        }
+        avatarUrl = up.data[0].url;
+      }
+      const res = await updateProfile({
+        ...(nameChanged ? { name: data.fullName.trim() } : {}),
+        ...(avatarUrl ? { avatarUrl } : {}),
+      });
+      if (!res.success) {
+        toast.error(errorMessage(res, "Your profile could not be saved."));
+        return;
+      }
+      applySessionUser(res.data);
+      toast.success("Profile updated");
+      onOpenChange(false);
     } finally {
       setIsSubmitting(false);
     }
@@ -105,13 +118,12 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
           <div className="flex flex-col items-center justify-center mb-6">
             <div className="relative group">
               <div className="size-20 sm:size-24 rounded-full overflow-hidden ring-4 ring-slate-100 shadow-md bg-slate-100 relative">
-                <Image
-                  src={avatarPreview}
-                  alt={user.fullName}
-                  fill
-                  className="object-cover"
-                  sizes="96px"
-                />
+                {avatarPreview ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={avatarPreview} alt={user.name} className="size-full object-cover" />
+                ) : (
+                  <UserAvatar src={user.avatarUrl} alt={user.name} />
+                )}
               </div>
               <button
                 type="button"
@@ -124,7 +136,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 onChange={handleAvatarChange}
                 className="hidden"
               />
@@ -133,19 +145,18 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
 
           {/* Form */}
           <ReuseableForm form={form} onSubmit={onSubmit} className="space-y-4">
-            {/* Full Name */}
             <div>
               <FormInput
                 control={form.control}
                 name="fullName"
                 label="Full Name"
                 placeholder="Enter your full name"
+                autoComplete="name"
                 prefix={<User className="size-4 text-slate-400" />}
                 inputClassName="bg-white! border-slate-200! focus:border-[#0284C7]! text-slate-900! text-sm! py-4! rounded-xl!"
               />
             </div>
 
-            {/* Email (Read-Only) */}
             <div>
               <FormInput
                 control={form.control}
@@ -158,12 +169,12 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
               />
             </div>
 
-            {/* Phone Number (Read-Only) */}
             <div>
               <FormInput
                 control={form.control}
                 name="phoneNumber"
                 label="Phone Number"
+                placeholder="No phone number on file"
                 disabled={true}
                 prefix={<Phone className="size-4 text-slate-400" />}
                 suffix={<Lock className="size-4 text-slate-400" />}
@@ -171,7 +182,6 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
               />
             </div>
 
-            {/* Warning Callout Box */}
             <div className="bg-[#FFFBEB] border border-[#FDE68A] rounded-xl p-3.5 flex items-start gap-3 mt-4">
               <AlertCircle className="size-4.5 text-amber-600 shrink-0 mt-0.5" />
               <p className="text-xs sm:text-[13px] text-[#92400E] leading-relaxed">
@@ -180,7 +190,6 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
               </p>
             </div>
 
-            {/* Footer Buttons */}
             <div className="flex items-center justify-end gap-3 pt-5 mt-6 border-t border-slate-100">
               <Button
                 type="button"
