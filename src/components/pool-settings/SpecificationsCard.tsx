@@ -3,31 +3,15 @@
 import React from "react";
 import { Control, Controller } from "react-hook-form";
 import { FormInput } from "@/components/ui/CustomUi/ReuseForm/Form";
-import {
-  IPoolSettings,
-  PoolType,
-  WaterTreatment,
-  SurfaceFinish,
-} from "@/service/PoolSettingsService/PoolSettingsServiceApi";
+import { IPoolSettings } from "@/service/PoolSettingsService/PoolSettingsServiceApi";
 
 export interface SpecificationsCardProps {
   control: Control<IPoolSettings>;
 }
 
-const POOL_TYPES: PoolType[] = ["Residential", "Commercial", "I don't know"];
-
-const WATER_TREATMENTS: WaterTreatment[] = [
-  "Saltwater",
-  "Chlorine",
-  "I don't know",
-];
-
-const SURFACE_FINISHES: SurfaceFinish[] = [
-  "Tile (Gresite)",
-  "Liner / Vinyl",
-  "Polyester / Fibreglass",
-  "I don't know",
-];
+const POOL_TYPES = ["Residential", "Commercial"];
+const WATER_TREATMENTS = ["Saltwater", "Chlorine"];
+const SURFACE_FINISHES = ["Tiles", "Liner", "Fiberglass", "Painted concrete"];
 
 export const SpecificationsCard: React.FC<SpecificationsCardProps> = ({
   control,
@@ -77,9 +61,10 @@ export const SpecificationsCard: React.FC<SpecificationsCardProps> = ({
           <div>
             <FormInput
               control={control}
-              name="approximateVolume"
-              label="Approximate Volume"
-              placeholder="e.g. 48,000 L"
+              name="volumeM3"
+              type="number"
+              label="Approximate Volume (m³)"
+              placeholder="e.g. 48"
               inputClassName="bg-white! border-gray-200! focus:border-[#0284C7]! text-zinc-900! text-sm sm:text-base! font-medium! font-['Onest']! py-3.5! rounded-2xl!"
             />
           </div>
@@ -151,7 +136,7 @@ export const SpecificationsCard: React.FC<SpecificationsCardProps> = ({
           </label>
           <Controller
             control={control}
-            name="surfaceFinish"
+            name="surfaceType"
             render={({ field }) => (
               <div className="flex items-center gap-2.5 flex-wrap">
                 {SURFACE_FINISHES.map((finish) => {

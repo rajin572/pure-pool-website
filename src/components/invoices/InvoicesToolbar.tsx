@@ -26,7 +26,7 @@ export const InvoicesToolbar: React.FC<InvoicesToolbarProps> = ({
   onSearchChange,
   sortBy,
   onSortChange,
-  counts = { all: 6, paid: 5, outstanding: 1 },
+  counts = { all: 0, paid: 0, outstanding: 0 },
 }) => {
   const tabs: { label: string; value: InvoiceStatusFilter; count: number }[] = [
     { label: "All", value: "all", count: counts.all },

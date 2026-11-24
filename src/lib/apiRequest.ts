@@ -24,8 +24,19 @@ const withBody = (method: string, body?: unknown): RequestInit => ({
   ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
 });
 
+const withQuery = (path: string, params?: Record<string, string | number | boolean | undefined>) => {
+  if (!params) return path;
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) if (v !== undefined) qs.set(k, String(v));
+  const s = qs.toString();
+  return s ? `${path}?${s}` : path;
+};
+
+export const get = <T>(path: string, params?: Record<string, string | number | boolean | undefined>) =>
+  request<T>(withQuery(path, params), { method: "GET" });
 export const post = <T>(path: string, body?: unknown) => request<T>(path, withBody("POST", body));
 export const patch = <T>(path: string, body?: unknown) => request<T>(path, withBody("PATCH", body));
+export const del = <T>(path: string) => request<T>(path, { method: "DELETE" });
 
 /** Error text for a failed result, with a fallback for the unexpected. */
 export const errorMessage = (res: IApiResult<unknown>, fallback = "Something went wrong. Please try again.") =>

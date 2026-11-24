@@ -20,16 +20,8 @@ import {
   SelectItem,
 } from "@/components/ui/CustomUi/ReuseForm/Form";
 import ReusableGradientButton from "@/components/ui/CustomUi/ReusableGradientButton";
-
-// =========================================================================
-// API INTEGRATION READY PLACEHOLDERS (Redux Toolkit Query / Server Actions)
-// =========================================================================
-// import {
-//   useCreateQuoteRequestMutation, // POST
-//   useGetMaintenancePlansQuery,   // GET
-//   useUpdateQuoteRequestMutation, // PATCH
-//   useDeleteQuoteRequestMutation, // DELETE
-// } from "@/redux/features/quote/quoteApi";
+import { submitPublicLead } from "@/service/HomeService/HomeServiceApi";
+import { errorMessage } from "@/lib/apiRequest";
 
 export interface QuoteFormValues {
   fullName: string;
@@ -54,13 +46,7 @@ export const QuoteRequestModal: React.FC<QuoteRequestModalProps> = ({
   onClose,
   defaultPlan = "Premium",
 }) => {
-  // =======================================================================
-  // Redux API Hooks (Uncomment when connecting to backend endpoints)
-  // =======================================================================
-  // const [createQuoteRequest, { isLoading: isSubmitting }] = useCreateQuoteRequestMutation();
-  // const { data: plansList, isLoading: isPlansLoading } = useGetMaintenancePlansQuery();
-  // const [updateQuoteRequest] = useUpdateQuoteRequestMutation();
-  // const [deleteQuoteRequest] = useDeleteQuoteRequestMutation();
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const form = useForm<QuoteFormValues>({
     defaultValues: {
@@ -80,23 +66,33 @@ export const QuoteRequestModal: React.FC<QuoteRequestModalProps> = ({
     }
   }, [defaultPlan, form]);
 
-  const onSubmit = async () => {
-    // =====================================================================
-    // POST request example:
-    // try {
-    //   const response = await createQuoteRequest(values).unwrap();
-    //   toast.success("Quote request submitted successfully!");
-    //   form.reset();
-    //   onClose();
-    // } catch (err: any) {
-    //   toast.error(err?.data?.message || "Failed to submit quote request.");
-    // }
-    // =====================================================================
+  const onSubmit = async (values: QuoteFormValues) => {
+    setIsSubmitting(true);
+    const notesParts = [
+      values.notes,
+      values.preferredDate ? `Preferred inspection date: ${values.preferredDate.toLocaleDateString()}` : null,
+      values.preferredTime ? `Preferred time: ${values.preferredTime.toLocaleTimeString()}` : null,
+    ].filter(Boolean);
 
-    // Design phase mock confirmation
-    toast.success("Thank you! Your quote request has been received. Our team will contact you within 24 hours.");
-    form.reset();
-    onClose();
+    const res = await submitPublicLead({
+      name: values.fullName,
+      email: values.email,
+      phone: values.phone,
+      kind: "QUOTE",
+      selectedPlanCode: values.selectedPlan,
+      poolLocation: values.location,
+      poolSize: values.poolSize,
+      message: notesParts.join(" — ") || undefined,
+    });
+    setIsSubmitting(false);
+
+    if (res.success) {
+      toast.success("Thank you! Your quote request has been received. Our team will contact you within 24 hours.");
+      form.reset();
+      onClose();
+    } else {
+      toast.error(errorMessage(res, "Could not submit your request. Please try again."));
+    }
   };
 
   return (
@@ -203,7 +199,8 @@ export const QuoteRequestModal: React.FC<QuoteRequestModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-100 font-medium text-sm transition-colors"
+              disabled={isSubmitting}
+              className="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-100 font-medium text-sm transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
@@ -211,8 +208,9 @@ export const QuoteRequestModal: React.FC<QuoteRequestModalProps> = ({
               type="submit"
               size="lg"
               className="px-6 py-2.5"
+              disabled={isSubmitting}
             >
-              Submit Quote Request
+              {isSubmitting ? "Submitting..." : "Submit Quote Request"}
             </ReusableGradientButton>
           </div>
         </ReuseableForm>

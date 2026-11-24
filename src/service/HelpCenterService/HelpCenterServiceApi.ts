@@ -1,26 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
-import { fetchWithAuth } from "@/lib/fetchWraper";
-
 /**
- * ==============================================================================
- * HELP CENTER SERVICE API & INTERFACES
- * ==============================================================================
- * Connects to Pure Pool backend support & FAQ endpoints:
- * - POST /api/support/contact - Send message from Help Center form
- * - GET /api/support/faqs - Retrieve categorized FAQs
- * ==============================================================================
+ * Help Center FAQs: static content, no backend endpoint (project-docs qa.md Q-11).
+ * The contact form itself is wired in `SendMessageForm.tsx` directly against
+ * `/conversations` (logged in) or `POST /public/leads` (logged out).
  */
-
-export interface ContactMessagePayload {
-  name: string;
-  email: string;
-  phone?: string;
-  subject: string;
-  message: string;
-  consent: boolean;
-}
 
 export interface FAQItem {
   id: string;
@@ -108,44 +90,7 @@ export const MOCK_HELP_FAQS: FAQItem[] = [
   },
 ];
 
-/**
- * Submit contact inquiry message
- */
-export async function submitContactMessage(payload: ContactMessagePayload) {
-  try {
-    /**
-     * API Ready - Uncomment for live backend:
-     * return await fetchWithAuth("/api/support/contact", {
-     *   method: "POST",
-     *   body: JSON.stringify(payload),
-     * });
-     */
-    return {
-      success: true,
-      message: "Thank you! Your message has been received. Our team will contact you shortly.",
-      data: payload,
-    };
-  } catch (error: any) {
-    return {
-      success: false,
-      message: error?.message || "Failed to send message.",
-    };
-  }
-}
-
-/**
- * Fetch FAQs
- */
 export async function getHelpFaqs() {
-  try {
-    /**
-     * API Ready - Uncomment for live backend:
-     * const res = await fetchWithAuth("/api/support/faqs", { method: "GET" });
-     * return res.data as FAQItem[];
-     */
-    return MOCK_HELP_FAQS;
-  } catch {
-    return MOCK_HELP_FAQS;
-  }
+  return MOCK_HELP_FAQS;
 }
 

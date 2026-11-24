@@ -1,242 +1,89 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
+import { get, patch } from "@/lib/apiRequest";
 
-import { fetchWithAuth } from "@/lib/fetchWraper";
-
-/**
- * ==============================================================================
- * POOL SETTINGS API SERVICES & TYPE DEFINITIONS
- * ==============================================================================
- * Production-ready Next.js SSR & Client Actions architecture.
- * Ready for REST API / Redux RTK Query wiring:
- * - GET: Fetch pool settings by pool ID
- * - PATCH: Update pool settings (Location, Specs, Equipment)
- * - POST: Upload new pool photo
- * - DELETE: Delete pool photo
- * ==============================================================================
- */
-
-export type PoolType = "Residential" | "Commercial" | "I don't know";
-export type WaterTreatment = "Saltwater" | "Chlorine" | "I don't know";
-export type SurfaceFinish =
-  | "Tile (Gresite)"
-  | "Liner / Vinyl"
-  | "Polyester / Fibreglass"
-  | "I don't know";
-
-export interface IPoolDimensions {
-  length: string;
-  width: string;
-  depth: string;
-}
-
+/** Form shape the Pool Settings page edits. `id` = poolId, `propertyId` identifies the address record. */
 export interface IPoolSettings {
   id: string;
+  propertyId: string;
   poolName: string;
   address: string;
   city: string;
   postalCode: string;
   accessInstructions: string;
-  poolType: PoolType;
-  approximateVolume: string;
-  dimensions: IPoolDimensions;
-  waterTreatment: WaterTreatment;
-  surfaceFinish: SurfaceFinish;
+  poolType: string;
+  volumeM3: string;
+  dimensions: { length: string; width: string; depth: string };
+  waterTreatment: string;
+  surfaceType: string;
   equipmentNotes: string;
   photos: string[];
 }
 
-export interface IUpdatePoolSettingsPayload {
-  poolName?: string;
-  address?: string;
+export interface IPoolSettingsPool {
+  _id: string;
+  name: string;
+  poolType?: string;
+  volumeM3?: number;
+  length?: number;
+  width?: number;
+  depth?: number;
+  waterType?: string;
+  surfaceType?: string;
+  equipmentNotes?: string;
+  accessInstructions?: string;
+  photos?: string[];
+  propertyId: string;
+}
+
+export interface IPoolSettingsProperty {
+  _id: string;
+  address: string;
   city?: string;
   postalCode?: string;
-  accessInstructions?: string;
-  poolType?: PoolType;
-  approximateVolume?: string;
-  dimensions?: IPoolDimensions;
-  waterTreatment?: WaterTreatment;
-  surfaceFinish?: SurfaceFinish;
-  equipmentNotes?: string;
 }
 
-export interface IPoolSettingsResponse<T = any> {
-  success: boolean;
-  statusCode?: number;
-  message: string;
-  data?: T;
-}
+export const getPoolSettings = (poolId: string) =>
+  get<{ pool: IPoolSettingsPool; property: IPoolSettingsProperty | null }>(`/pools/${poolId}`);
 
-/**
- * Mock data matching exact Figma design specifications
- */
-export const MOCK_POOL_SETTINGS: Record<string, IPoolSettings> = {
-  main: {
-    id: "pool_main_01",
-    poolName: "Main Pool",
-    address: "Carrer de la Mar, 24",
-    city: "Marbella",
-    postalCode: "29602",
-    accessInstructions:
-      "Gate code 4821. Key is in the lockbox next to the entrance. Please keep the gate closed after entering. Dog may be on the premises.",
-    poolType: "Residential",
-    approximateVolume: "48,000 L",
-    dimensions: {
-      length: "10 m",
-      width: "5 m",
-      depth: "1.6 m",
-    },
-    waterTreatment: "Saltwater",
-    surfaceFinish: "Tile (Gresite)",
-    equipmentNotes:
-      "Hayward salt chlorinator. Sand filter and variable-speed pump installed in the equipment room behind the pool. Last equipment service completed recently.",
-    photos: [
-      "/images/homepage/pool1.jpg",
-      "/images/homepage/pool2.jpg",
-      "/images/homepage/pool3.jpg",
-      "/images/homepage/pool4.jpg",
-    ],
+export const toFormValues = (
+  pool: IPoolSettingsPool,
+  property: IPoolSettingsProperty | null
+): IPoolSettings => ({
+  id: pool._id,
+  propertyId: property?._id || "",
+  poolName: pool.name,
+  address: property?.address || "",
+  city: property?.city || "",
+  postalCode: property?.postalCode || "",
+  accessInstructions: pool.accessInstructions || "",
+  poolType: pool.poolType || "",
+  volumeM3: pool.volumeM3 != null ? String(pool.volumeM3) : "",
+  dimensions: {
+    length: pool.length != null ? String(pool.length) : "",
+    width: pool.width != null ? String(pool.width) : "",
+    depth: pool.depth != null ? String(pool.depth) : "",
   },
-  farmhouse: {
-    id: "pool_farmhouse_02",
-    poolName: "Farm House Pool",
-    address: "Camino de las Huertas 12",
-    city: "Ronda",
-    postalCode: "29400",
-    accessInstructions:
-      "Side wooden gate is unlocked. Equipment shed is to the left of the stone terrace. Key code is 1234.",
-    poolType: "Residential",
-    approximateVolume: "35,000 L",
-    dimensions: {
-      length: "8 m",
-      width: "4 m",
-      depth: "1.5 m",
-    },
-    waterTreatment: "Chlorine",
-    surfaceFinish: "Polyester / Fibreglass",
-    equipmentNotes:
-      "Zodiac cartridge filter with standard dual speed pump. Serviced in spring.",
-    photos: [
-      "/images/homepage/pool5.jpg",
-      "/images/homepage/pool6.jpg",
-      "/images/homepage/pool2.jpg",
-    ],
-  },
-};
+  waterTreatment: pool.waterType || "",
+  surfaceType: pool.surfaceType || "",
+  equipmentNotes: pool.equipmentNotes || "",
+  photos: pool.photos || [],
+});
 
-/**
- * ==============================================================================
- * API INTEGRATION METHODS (Commented out ready for backend connection)
- * ==============================================================================
- */
-
-/**
- * GET: Fetch Pool Settings
- */
-export async function getPoolSettingsApi(
-  poolId = "main"
-): Promise<IPoolSettingsResponse<IPoolSettings>> {
-  // try {
-  //   const response = await fetchWithAuth(`/api/pool-settings/${poolId}`, {
-  //     method: "GET",
-  //     headers: { "Content-Type": "application/json" },
-  //   });
-  //   return await response.json();
-  // } catch (error) {
-  //   console.error("Failed to fetch pool settings:", error);
-  //   throw error;
-  // }
-
-  return {
-    success: true,
-    statusCode: 200,
-    message: "Pool settings fetched successfully",
-    data: MOCK_POOL_SETTINGS[poolId] || MOCK_POOL_SETTINGS.main,
-  };
+export interface IPoolUpdateResult {
+  pool: IPoolSettingsPool;
+  applied: string[];
+  reviewRequired: string[];
 }
 
-/**
- * PATCH: Update Pool Settings
- */
-export async function updatePoolSettingsApi(
-  poolId: string,
-  payload: IUpdatePoolSettingsPayload
-): Promise<IPoolSettingsResponse<IPoolSettings>> {
-  // try {
-  //   const response = await fetchWithAuth(`/api/pool-settings/${poolId}`, {
-  //     method: "PATCH",
-  //     headers: { "Content-Type": "application/json" },
-  //     body: JSON.stringify(payload),
-  //   });
-  //   return await response.json();
-  // } catch (error) {
-  //   console.error("Failed to update pool settings:", error);
-  //   throw error;
-  // }
+/** `PATCH /pools/:id`. On an approved pool, changes to reviewable fields go through office verification. */
+export const updatePoolSettings = (poolId: string, body: Record<string, unknown>) =>
+  patch<IPoolUpdateResult>(`/pools/${poolId}`, body);
 
-  return {
-    success: true,
-    statusCode: 200,
-    message: "Pool settings updated successfully",
-    data: {
-      ...(MOCK_POOL_SETTINGS[poolId] || MOCK_POOL_SETTINGS.main),
-      ...payload,
-    },
-  };
+export interface IPropertyUpdateResult {
+  property: IPoolSettingsProperty;
+  applied: string[];
+  reviewRequired: string[];
 }
 
-/**
- * POST: Upload Pool Photo
- */
-export async function uploadPoolPhotoApi(
-  poolId: string,
-  file: File
-): Promise<IPoolSettingsResponse<{ photoUrl: string }>> {
-  // try {
-  //   const formData = new FormData();
-  //   formData.append("photo", file);
-  //   const response = await fetchWithAuth(`/api/pool-settings/${poolId}/photos`, {
-  //     method: "POST",
-  //     body: formData,
-  //   });
-  //   return await response.json();
-  // } catch (error) {
-  //   console.error("Failed to upload pool photo:", error);
-  //   throw error;
-  // }
-
-  return {
-    success: true,
-    statusCode: 201,
-    message: "Photo uploaded successfully",
-    data: { photoUrl: URL.createObjectURL(file) },
-  };
-}
-
-/**
- * DELETE: Delete Pool Photo
- */
-export async function deletePoolPhotoApi(
-  poolId: string,
-  photoUrl: string
-): Promise<IPoolSettingsResponse<null>> {
-  // try {
-  //   const response = await fetchWithAuth(`/api/pool-settings/${poolId}/photos`, {
-  //     method: "DELETE",
-  //     headers: { "Content-Type": "application/json" },
-  //     body: JSON.stringify({ photoUrl }),
-  //   });
-  //   return await response.json();
-  // } catch (error) {
-  //   console.error("Failed to delete pool photo:", error);
-  //   throw error;
-  // }
-
-  return {
-    success: true,
-    statusCode: 200,
-    message: "Photo deleted successfully",
-    data: null,
-  };
-}
-
+/** `PATCH /properties/:id`. */
+export const updatePropertyAddress = (propertyId: string, body: Record<string, unknown>) =>
+  patch<IPropertyUpdateResult>(`/properties/${propertyId}`, body);

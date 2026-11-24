@@ -1,463 +1,134 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-"use server";
+import { get } from "@/lib/apiRequest";
 
-import { fetchWithAuth } from "@/lib/fetchWraper";
-import { revalidatePath } from "next/cache";
-
-/**
- * ==============================================================================
- * MY POOL API SERVICES & TYPE DEFINITIONS
- * ==============================================================================
- * Follows Next.js Server Side Rendering (SSR) & Server Actions best practices.
- * When the backend REST endpoints are deployed, these functions handle:
- * - GET: Pre-fetching pool specifications, chemistry, equipment, and visit history on the server
- * - POST: Creating special service requests
- * - PATCH: Updating pool technical parameters
- * - DELETE: Removing or archiving equipment records
- * ==============================================================================
- */
-
-export interface PoolSpecificationItem {
-  label: string;
-  value: string;
-}
-
-export interface PoolOverviewData {
-  id: string;
+export interface IPoolProperty {
+  _id: string;
   name: string;
   address: string;
-  poolType: string;
-  waterVolume: string;
-  dimensions: string;
-  waterType: string;
-  surfaceFinish: string;
-  status: "verified" | "pending" | "maintenance_due";
-  nextScheduledVisit: {
-    date: string;
-    technicianName: string;
-    serviceType: string;
-  };
+  city?: string;
+  postalCode?: string;
+  location?: { lat: number; lng: number };
 }
 
-export interface ParameterGaugeReading {
-  label: string;
-  value: string | number;
-  unit?: string;
-  status: "optimal" | "high" | "low" | "below_ideal" | "critical";
-  statusText: string;
-  min: number;
-  max: number;
-  idealMin: number;
-  idealMax: number;
-  currentNumeric: number;
-}
-
-export interface WaterConditionData {
-  gauges: ParameterGaugeReading[];
-  history: {
-    metric: "ph" | "chlorine" | "alkalinity" | "temperature";
-    records: { date: string; value: number }[];
-  }[];
-}
-
-export interface EquipmentRecord {
-  id: string;
+/** `Pool`, as returned (with `propertyId` populated) by `GET /pools`. */
+export interface IPoolSummary {
+  _id: string;
   name: string;
-  serialNumber: string;
-  brandAndModel: string;
-  installedDate: string;
-  warrantyStatus: string;
-  condition?: string;
-  manualUrl?: string;
-}
-
-export interface ServiceVisitChemical {
-  name: string;
-  note: string;
-  amount: string;
-}
-
-export interface ServiceVisitRecord {
-  id: string;
-  date: string;
-  type: string;
-  technicianName: string;
-  ph: string;
-  chlorine?: string;
-  choline?: string;
-  alkalinity: string;
-  temperature: string;
-  status: string;
-  workPerformed?: string[];
-  chemicalsAdded?: ServiceVisitChemical[];
-  observations?: string;
-  beforePhotoUrl?: string;
-  afterPhotoUrl?: string;
-}
-
-export interface ServiceRequestPayload {
-  poolId: string;
-  serviceTitle: string;
-  serviceCategory: string;
-  preferredDate: string;
-  preferredTime?: string;
+  status: "DRAFT" | "PENDING_VERIFICATION" | "VERIFIED" | "ACTIVE" | "ARCHIVED";
+  poolType?: string;
+  shape?: string;
+  length?: number;
+  width?: number;
+  depth?: number;
+  maxDepth?: number;
+  volumeM3?: number;
+  waterType?: string;
+  surfaceType?: string;
+  photos?: string[];
   notes?: string;
+  equipmentNotes?: string;
+  accessInstructions?: string;
+  locationNotes?: string;
+  preferredVisitWeekDay?: number;
+  preferredVisitTime?: string;
+  propertyId: IPoolProperty | string;
+  customerId: { _id: string; name: string; phone?: string; email: string } | string;
 }
 
-export interface ApiResponse<T> {
-  success: boolean;
-  message?: string;
-  data: T;
+export interface IEquipmentItem {
+  _id: string;
+  poolId: string;
+  type: string;
+  brand?: string;
+  model?: string;
+  serialNumber?: string;
+  installedAt?: string;
+  warrantyEndsAt?: string;
+  status: "ACTIVE" | "REPAIR_NEEDED" | "REPLACED" | "REMOVED";
+  condition: "GOOD" | "AGEING" | "POOR";
+  notes?: string;
+  warrantyStatus?: "VALID" | "EXPIRED" | "UNKNOWN";
 }
 
-// ----------------------------------------------------------------------
-// 1. GET: Fetch Pool Overview & Technical Specifications (SSR)
-// ----------------------------------------------------------------------
-export const getMyPoolOverview = async (
-  poolId: string = "main"
-): Promise<ApiResponse<PoolOverviewData>> => {
-  try {
-    const res = await fetchWithAuth(`/pools/${poolId}/overview`, {
-      method: "GET",
-      next: {
-        revalidate: 60, // Cache for 60 seconds
-        tags: [`pool-${poolId}-overview`],
-      },
-    });
+export interface IPoolVisit {
+  _id: string;
+  scheduledAt: string;
+  status: string;
+  category?: string;
+  technicianId?: { _id: string; name: string; avatarUrl?: string } | null;
+}
 
-    if (!res.ok) {
-      throw new Error(`Failed to fetch pool overview: ${res.statusText}`);
-    }
+export interface IVisitReportSafe {
+  id: string;
+  visitId: string;
+  poolId: string;
+  status: "DRAFT" | "TO_CHECK" | "SENT_BACK" | "APPROVED";
+  waterReadings: { name: string; value: number; unit?: string }[];
+  beforePhotos: { url: string; uploadedAt: string }[];
+  afterPhotos: { url: string; uploadedAt: string }[];
+  checklist: { task: string; done: boolean }[];
+  chemicals: { name: string; quantity: number; unit: string; reason?: string }[];
+  customerNotes?: string;
+  approvedAt?: string;
+  updatedAt: string;
+}
 
-    return await res.json();
-  } catch (error: any) {
-    // Return graceful fallback data during design & dev before backend deployment
-    return {
-      success: false,
-      message: error?.message || "Using client mock data",
-      data: {
-        id: poolId,
-        name: poolId === "main" ? "Main Residence Pool" : "Garden Pool",
-        address: "Calle de Alcalá 125, 28009 Madrid",
-        poolType: "Residential",
-        waterVolume: "48 m³ (48,000 L)",
-        dimensions: "8m × 4m (Depth 1.2m - 2.1m)",
-        waterType: "Saltwater",
-        surfaceFinish: "Tile",
-        status: "verified",
-        nextScheduledVisit: {
-          date: "Thursday, 22 May 2026 · 10:00 - 12:00",
-          technicianName: "Carlos Martínez (Certified)",
-          serviceType: "Weekly Full Chemical & Filter Service",
-        },
-      },
-    };
-  }
-};
+export interface IPendingCorrection {
+  _id: string;
+  changes: { field: string; oldValue: unknown; newValue: unknown }[];
+  status: string;
+  createdAt: string;
+}
 
-// ----------------------------------------------------------------------
-// 2. GET: Fetch Water Condition Stats & Historical Readings (SSR)
-// ----------------------------------------------------------------------
-export const getWaterConditionStats = async (
-  poolId: string = "main"
-): Promise<ApiResponse<WaterConditionData>> => {
-  try {
-    const res = await fetchWithAuth(`/pools/${poolId}/water-condition`, {
-      method: "GET",
-      next: {
-        revalidate: 30, // Chemistry updates frequently
-        tags: [`pool-${poolId}-water`],
-      },
-    });
+export interface IPoolDocument {
+  _id: string;
+  kind: "MANUAL" | "WARRANTY" | "CERTIFICATE" | "REPORT" | "CONTRACT" | "INVOICE" | "OTHER";
+  title: string;
+  url: string;
+  mimeType?: string;
+  createdAt: string;
+}
 
-    if (!res.ok) {
-      throw new Error(`Failed to fetch water conditions: ${res.statusText}`);
-    }
+export interface IPoolDetailsData {
+  pool: IPoolSummary;
+  property: IPoolProperty | null;
+  customer?: { _id: string; name: string; phone?: string; email: string } | null;
+  equipment: IEquipmentItem[];
+  visits: IPoolVisit[];
+  nextVisit: IPoolVisit | null;
+  schedule: { _id: string; technicianId?: { name: string } | null } | null;
+  readings: IVisitReportSafe[];
+  latestWater: { recordedAt: string; readings: IWaterReading[] } | null;
+  documents: IPoolDocument[];
+  pendingCorrections: IPendingCorrection[];
+}
 
-    return await res.json();
-  } catch (error: any) {
-    return {
-      success: false,
-      message: error?.message || "Using client mock data",
-      data: {
-        gauges: [
-          {
-            label: "pH Level",
-            value: "7.3",
-            status: "optimal",
-            statusText: "optimal",
-            min: 6.6,
-            max: 8.0,
-            idealMin: 7.2,
-            idealMax: 7.6,
-            currentNumeric: 7.3,
-          },
-          {
-            label: "Free Chlorine",
-            value: "1.8",
-            unit: "mg/L",
-            status: "optimal",
-            statusText: "optimal",
-            min: 0,
-            max: 5.0,
-            idealMin: 1.0,
-            idealMax: 3.0,
-            currentNumeric: 1.8,
-          },
-          {
-            label: "Total Alkalinity",
-            value: "145",
-            unit: "ppm",
-            status: "high",
-            statusText: "High",
-            min: 0,
-            max: 5.0,
-            idealMin: 1.0,
-            idealMax: 3.0,
-            currentNumeric: 4.2,
-          },
-          {
-            label: "Water Temperature",
-            value: "24.5",
-            unit: "°C",
-            status: "below_ideal",
-            statusText: "Below ideal",
-            min: 15,
-            max: 35,
-            idealMin: 26,
-            idealMax: 28,
-            currentNumeric: 24.5,
-          },
-        ],
-        history: [],
-      },
-    };
-  }
-};
+export interface IWaterReading {
+  key: string;
+  name: string;
+  value: number;
+  unit: string;
+  range: { min?: number; goodFrom: number; goodTo: number; max?: number } | null;
+  status: "GOOD" | "WARNING" | "BAD" | "UNKNOWN";
+  direction?: "LOW" | "HIGH";
+}
 
-// ----------------------------------------------------------------------
-// 3. GET: Fetch Pool Equipment Inventory (SSR)
-// ----------------------------------------------------------------------
-export const getPoolEquipment = async (
-  poolId: string = "main"
-): Promise<ApiResponse<EquipmentRecord[]>> => {
-  try {
-    const res = await fetchWithAuth(`/pools/${poolId}/equipment`, {
-      method: "GET",
-      next: {
-        revalidate: 3600, // Equipment changes infrequently
-        tags: [`pool-${poolId}-equipment`],
-      },
-    });
+export type IWaterRangesMap = Record<
+  string,
+  { name: string; unit: string; min?: number; goodFrom: number; goodTo: number; max?: number }
+>;
 
-    if (!res.ok) {
-      throw new Error(`Failed to fetch equipment: ${res.statusText}`);
-    }
+export interface IPoolWaterData {
+  poolId: string;
+  recordedAt: string | null;
+  recordedBy: string | null;
+  overall: "NO_DATA" | "BALANCED" | "WATCH" | "ATTENTION";
+  readings: IWaterReading[];
+  ranges: IWaterRangesMap;
+  history: Record<string, { date: string; value: number }[]>;
+}
 
-    return await res.json();
-  } catch (error: any) {
-    return {
-      success: false,
-      message: error?.message || "Using client mock data",
-      data: [
-        {
-          id: "1",
-          name: "Variable Speed Filtration Pump",
-          serialNumber: "S/N: AP-2022-88192-M",
-          brandAndModel: "AstralPool · Victoria Plus Silent 1.5 CV",
-          installedDate: "12/04/2022",
-          warrantyStatus: "Confirmed",
-        },
-        {
-          id: "2",
-          name: "Variable Speed Filtration Pump",
-          serialNumber: "S/N: AP-2022-88192-M",
-          brandAndModel: "AstralPool · Victoria Plus Silent 1.5 CV",
-          installedDate: "12/04/2022",
-          warrantyStatus: "Confirmed",
-        },
-        {
-          id: "3",
-          name: "Variable Speed Filtration Pump",
-          serialNumber: "S/N: AP-2022-88192-M",
-          brandAndModel: "AstralPool · Victoria Plus Silent 1.5 CV",
-          installedDate: "12/04/2022",
-          warrantyStatus: "Confirmed",
-        },
-        {
-          id: "4",
-          name: "Variable Speed Filtration Pump",
-          serialNumber: "S/N: AP-2022-88192-M",
-          brandAndModel: "AstralPool · Victoria Plus Silent 1.5 CV",
-          installedDate: "12/04/2022",
-          warrantyStatus: "Confirmed",
-        },
-      ],
-    };
-  }
-};
-
-// ----------------------------------------------------------------------
-// 4. GET: Fetch Service Visits History (SSR)
-// ----------------------------------------------------------------------
-export const getServiceVisitsHistory = async (
-  poolId: string = "main",
-  page: number = 1,
-  limit: number = 10
-): Promise<ApiResponse<ServiceVisitRecord[]>> => {
-  try {
-    const res = await fetchWithAuth(
-      `/pools/${poolId}/service-visits?page=${page}&limit=${limit}`,
-      {
-        method: "GET",
-        next: {
-          revalidate: 60,
-          tags: [`pool-${poolId}-visits`],
-        },
-      }
-    );
-
-    if (!res.ok) {
-      throw new Error(`Failed to fetch visits history: ${res.statusText}`);
-    }
-
-    return await res.json();
-  } catch (error: any) {
-    return {
-      success: false,
-      message: error?.message || "Using client mock data",
-      data: [
-        {
-          id: "1",
-          date: "17 May 2026",
-          type: "Weekly maintenance",
-          technicianName: "Carlos Martínez",
-          ph: "7.3",
-          chlorine: "1.8 mg/L",
-          alkalinity: "145 ppm",
-          temperature: "24.5 °C",
-          status: "Completed",
-        },
-        {
-          id: "2",
-          date: "10 May 2026",
-          type: "Weekly maintenance",
-          technicianName: "Carlos Martínez",
-          ph: "7.2",
-          chlorine: "2.0 mg/L",
-          alkalinity: "140 ppm",
-          temperature: "23.8 °C",
-          status: "Completed",
-        },
-        {
-          id: "3",
-          date: "03 May 2026",
-          type: "Weekly maintenance",
-          technicianName: "Carlos Martínez",
-          ph: "7.4",
-          chlorine: "1.6 mg/L",
-          alkalinity: "150 ppm",
-          temperature: "22.5 °C",
-          status: "Completed",
-        },
-      ],
-    };
-  }
-};
-
-// ----------------------------------------------------------------------
-// 5. POST: Create a Service Request (Server Action)
-// ----------------------------------------------------------------------
-export const createServiceRequest = async (
-  payload: ServiceRequestPayload
-): Promise<ApiResponse<{ requestId: string }>> => {
-  try {
-    const res = await fetchWithAuth(`/pools/service-request`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const result = await res.json();
-    revalidatePath("/my-pool");
-    return result;
-  } catch (error: any) {
-    console.error("Error submitting service request:", error);
-    return {
-      success: false,
-      message: error?.message || "Network error",
-      data: { requestId: `REQ-MOCK-${Date.now()}` },
-    };
-  }
-};
-
-// ----------------------------------------------------------------------
-// 6. PATCH: Update Pool Specifications (Server Action)
-// ----------------------------------------------------------------------
-export const updatePoolSpecifications = async (
-  poolId: string,
-  specs: Partial<PoolOverviewData>
-): Promise<ApiResponse<PoolOverviewData>> => {
-  try {
-    const res = await fetchWithAuth(`/pools/${poolId}/specifications`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(specs),
-    });
-
-    const result = await res.json();
-    revalidatePath("/my-pool");
-    return result;
-  } catch (error: any) {
-    console.error("Error updating pool specs:", error);
-    return {
-      success: false,
-      message: error?.message || "Network error",
-      data: {
-        id: poolId,
-        name: "Main Residence Pool",
-        address: "Calle de Alcalá 125, 28009 Madrid",
-        poolType: "Residential",
-        waterVolume: "48 m³ (48,000 L)",
-        dimensions: "8m × 4m (Depth 1.2m - 2.1m)",
-        waterType: "Saltwater",
-        surfaceFinish: "Tile",
-        status: "verified",
-        nextScheduledVisit: {
-          date: "Thursday, 22 May 2026",
-          technicianName: "Carlos Martínez",
-          serviceType: "Weekly Maintenance",
-        },
-      },
-    };
-  }
-};
-
-// ----------------------------------------------------------------------
-// 7. DELETE: Remove Equipment Record (Server Action)
-// ----------------------------------------------------------------------
-export const deleteEquipmentRecord = async (
-  equipmentId: string
-): Promise<ApiResponse<{ deletedId: string }>> => {
-  try {
-    const res = await fetchWithAuth(`/pools/equipment/${equipmentId}`, {
-      method: "DELETE",
-    });
-
-    const result = await res.json();
-    revalidatePath("/my-pool");
-    return result;
-  } catch (error: any) {
-    console.error("Error deleting equipment record:", error);
-    return {
-      success: false,
-      message: error?.message || "Network error",
-      data: { deletedId: equipmentId },
-    };
-  }
-};
-
+export const getMyPools = () => get<IPoolSummary[]>("/pools");
+export const getPoolDetails = (poolId: string) => get<IPoolDetailsData>(`/pools/${poolId}`);
+export const getPoolWater = (poolId: string) => get<IPoolWaterData>(`/pools/${poolId}/water`);
+export const getPoolEquipment = (poolId: string) =>
+  get<IEquipmentItem[]>(`/pools/${poolId}/equipment`, { limit: 100 });

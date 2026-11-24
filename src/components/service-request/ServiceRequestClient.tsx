@@ -1,87 +1,78 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import Container from "@/components/ui/CustomUi/Container";
 import ReusableGradientButton from "@/components/ui/CustomUi/ReusableGradientButton";
 import ServiceRequestCard from "./ServiceRequestCard";
+import ServiceRequestDetailModal from "./ServiceRequestDetailModal";
 import RequestServiceModal from "@/components/mypool/RequestServiceModal";
-import { ServiceRequestRecord } from "@/service/ServiceRequestService/ServiceRequestServiceApi";
+import { getServiceRequests, ServiceRequestRecord } from "@/service/ServiceRequestService/ServiceRequestServiceApi";
 import { Plus, PhoneCall, AlertTriangle, Filter } from "lucide-react";
 import { prefersReducedMotion } from "@/lib/gsap-util";
 import ServiceRequestHero from "./ServiceRequestHero";
 
-interface ServiceRequestClientProps {
-  initialRequests: ServiceRequestRecord[];
-  total?: number;
-}
+type TFilter = "all" | "open" | "scheduled" | "resolved";
 
-export const ServiceRequestClient: React.FC<ServiceRequestClientProps> = ({
-  initialRequests,
-}) => {
-  const [requests, setRequests] = useState<ServiceRequestRecord[]>(initialRequests);
-  const [activeFilter, setActiveFilter] = useState<string>("all");
+const FILTERS: { id: TFilter; label: string }[] = [
+  { id: "all", label: "All tickets" },
+  { id: "open", label: "Open & In progress" },
+  { id: "scheduled", label: "Scheduled visits" },
+  { id: "resolved", label: "Resolved" },
+];
+
+const matchesFilter = (r: ServiceRequestRecord, filter: TFilter) => {
+  if (filter === "all") return true;
+  if (filter === "open") return r.customerStatus === "SUBMITTED" || r.customerStatus === "IN_PROGRESS";
+  if (filter === "scheduled") return r.customerStatus === "SCHEDULED";
+  return r.customerStatus === "COMPLETED" || r.customerStatus === "CANCELLED";
+};
+
+export const ServiceRequestClient: React.FC = () => {
+  const [requests, setRequests] = useState<ServiceRequestRecord[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<TFilter>("all");
   const [isRequestModalOpen, setIsRequestModalOpen] = useState<boolean>(false);
+  const [openDetailId, setOpenDetailId] = useState<string | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
 
   const listRef = useRef<HTMLDivElement>(null);
 
   useGSAP(() => {
     if (prefersReducedMotion()) return;
-
     if (listRef.current) {
-      gsap.fromTo(
-        listRef.current,
-        { opacity: 0, y: 20 },
-        { opacity: 1, y: 0, duration: 0.7, ease: "power3.out" }
-      );
+      gsap.fromTo(listRef.current, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.7, ease: "power3.out" });
     }
   }, []);
 
-  const filteredRequests = requests.filter((r) => {
-    if (activeFilter === "all") return true;
-    if (activeFilter === "in_progress") {
-      return r.status === "In progress" || r.status === "Submitted";
-    }
-    if (activeFilter === "scheduled") {
-      return r.status === "Scheduled";
-    }
-    if (activeFilter === "completed") {
-      return r.status === "Completed";
-    }
-    return true;
-  });
-
-  const handleRequestCreated = () => {
-    const newReq: ServiceRequestRecord = {
-      id: `sr-${Date.now()}`,
-      reference: `SR-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-      category: "equipment_breakdown",
-      categoryTitle: "Equipment breakdown",
-      description: "Service ticket logged. Technician dispatch scheduled.",
-      poolName: "Main Residence Pool",
-      urgency: "Normal",
-      status: "Submitted",
-      createdAt: "Today",
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const res = await getServiceRequests();
+      if (cancelled) return;
+      if (res.success) setRequests(res.data);
+      else setLoadError(res.error.message);
+    })();
+    return () => {
+      cancelled = true;
     };
-    setRequests((prev) => [newReq, ...prev]);
-  };
+  }, [reloadToken]);
+
+  const filteredRequests = (requests || []).filter((r) => matchesFilter(r, activeFilter));
+
+  const handleRequestCreated = () => setReloadToken((t) => t + 1);
 
   return (
     <main className="w-full min-h-screen flex flex-col bg-[#F9FAFB]">
-      {/* 1. Hero Section matching About & My Pool */}
       <ServiceRequestHero />
 
-      {/* 2. Main Content Area */}
       <div className="w-full py-10 md:py-14">
         <Container>
           <div ref={listRef} className="flex flex-col gap-6">
-            {/* Action Bar: Request New Service Trigger */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex flex-col">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
-                  Active Service Tickets
-                </h2>
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Active Service Tickets</h2>
                 <p className="text-sm text-gray-500">
                   Track ongoing technician visits, repair dispatches, and emergency calls.
                 </p>
@@ -97,7 +88,6 @@ export const ServiceRequestClient: React.FC<ServiceRequestClientProps> = ({
               </ReusableGradientButton>
             </div>
 
-            {/* 24/7 Madrid Emergency Callout Banner */}
             <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-red-500/10 via-amber-500/10 to-transparent border border-red-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-xl bg-red-100 text-red-600 shrink-0">
@@ -122,50 +112,44 @@ export const ServiceRequestClient: React.FC<ServiceRequestClientProps> = ({
               </a>
             </div>
 
-            {/* Filter Tabs */}
             <div className="flex items-center gap-2 pt-1 overflow-x-auto pb-1">
               <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider mr-2 hidden sm:inline">
                 Filter by:
               </span>
-              {[
-                { id: "all", label: `All Tickets (${requests.length})` },
-                { id: "in_progress", label: "Open & In Progress" },
-                { id: "scheduled", label: "Scheduled Visits" },
-                { id: "completed", label: "Resolved" },
-              ].map((tab) => {
-                const isActive = activeFilter === tab.id;
+              {FILTERS.map((f) => {
+                const isActive = activeFilter === f.id;
                 return (
                   <button
-                    key={tab.id}
+                    key={f.id}
                     type="button"
-                    onClick={() => setActiveFilter(tab.id)}
+                    onClick={() => setActiveFilter(f.id)}
                     className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer ${isActive
                       ? "bg-sky-600 text-white shadow-xs"
                       : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
                       }`}
                   >
-                    {tab.label}
+                    {f.label}
+                    {f.id === "all" && requests ? ` (${requests.length})` : ""}
                   </button>
                 );
               })}
             </div>
 
-            {/* Tickets List */}
             <div className="flex flex-col gap-4">
-              {filteredRequests.length > 0 ? (
+              {!requests ? (
+                <div className="py-16 p-6 rounded-2xl bg-white border border-gray-200 text-center text-sm text-gray-500">
+                  Loading your service requests...
+                </div>
+              ) : loadError ? (
+                <div className="py-16 p-6 rounded-2xl bg-white border border-gray-200 text-center text-sm text-red-600">{loadError}</div>
+              ) : filteredRequests.length > 0 ? (
                 filteredRequests.map((req) => (
-                  <ServiceRequestCard
-                    key={req.id}
-                    request={req}
-                    onClick={() => setIsRequestModalOpen(true)}
-                  />
+                  <ServiceRequestCard key={req._id} request={req} onClick={() => setOpenDetailId(req._id)} />
                 ))
               ) : (
                 <div className="py-16 p-6 rounded-2xl bg-white border border-gray-200 text-center flex flex-col items-center justify-center gap-3">
                   <Filter className="w-8 h-8 text-gray-300" />
-                  <p className="text-base font-semibold text-gray-700">
-                    No tickets found for this filter
-                  </p>
+                  <p className="text-base font-semibold text-gray-700">No tickets found for this filter</p>
                   <p className="text-xs text-gray-400">
                     Select another filter tab or click &ldquo;Request new service&rdquo; to file a new ticket.
                   </p>
@@ -176,12 +160,20 @@ export const ServiceRequestClient: React.FC<ServiceRequestClientProps> = ({
         </Container>
       </div>
 
-      {/* Request Service Modal */}
       <RequestServiceModal
         open={isRequestModalOpen}
         onOpenChange={setIsRequestModalOpen}
         onRequestCreated={handleRequestCreated}
       />
+
+      {openDetailId && (
+        <ServiceRequestDetailModal
+          requestId={openDetailId}
+          open={!!openDetailId}
+          onOpenChange={(v) => !v && setOpenDetailId(null)}
+          onCancelled={handleRequestCreated}
+        />
+      )}
     </main>
   );
 };

@@ -1,137 +1,102 @@
 "use client";
 
 import React from "react";
-import Image from "next/image";
 import { Eye } from "lucide-react";
 import ReusableTable, { Column } from "@/components/ui/CustomUi/ReuseableTable";
-import { ServiceHistoryRecord } from "@/service/ServiceHistoryService/ServiceHistoryServiceApi";
-import { AllImages } from "../../../public/images/AllImages";
+import UserAvatar from "@/components/profile/UserAvatar";
+import type { IPoolVisit, IVisitReportSafe } from "@/service/MyPoolService/MyPoolServiceApi";
+
+export interface ServiceHistoryRow {
+  visit: IPoolVisit;
+  report: IVisitReportSafe | null;
+}
 
 interface ServiceHistoryTableProps {
-  data: ServiceHistoryRecord[];
-  onViewVisit: (record: ServiceHistoryRecord) => void;
+  data: ServiceHistoryRow[];
+  onViewVisit: (row: ServiceHistoryRow) => void;
   currentPage?: number;
   onPageChange?: (page: number) => void;
   total?: number;
 }
 
-export const ServiceHistoryTable: React.FC<ServiceHistoryTableProps> = ({
-  data,
-  onViewVisit,
-  currentPage = 1,
-  onPageChange,
-  total = data.length,
-}) => {
-  const columns: Column<ServiceHistoryRecord>[] = [
+const readingValue = (report: IVisitReportSafe | null, key: string) => report?.waterReadings.find((r) => r.name.toLowerCase().startsWith(key))?.value;
+
+export const ServiceHistoryTable: React.FC<ServiceHistoryTableProps> = ({ data, onViewVisit, currentPage = 1, onPageChange, total = data.length }) => {
+  const columns: Column<ServiceHistoryRow>[] = [
     {
       header: "Date",
-      accessorKey: "date",
+      accessorKey: "visit",
       cellClassName: "font-semibold text-gray-900 text-sm py-4",
+      render: (_, row) => <span>{new Date(row.visit.scheduledAt).toLocaleDateString()}</span>,
     },
     {
       header: "Type",
-      accessorKey: "type",
+      accessorKey: "visit",
       cellClassName: "text-sm text-gray-700 font-medium py-4",
+      render: (_, row) => <span>{row.visit.category?.replace("_", " ") || "—"}</span>,
     },
     {
       header: "Technician",
-      accessorKey: "technician",
+      accessorKey: "visit",
       cellClassName: "py-4",
-      render: (technician: ServiceHistoryRecord["technician"]) => (
+      render: (_, row) => (
         <div className="flex items-center gap-2.5">
           <div className="relative w-7 h-7 rounded-full overflow-hidden bg-sky-100 shrink-0 ring-1 ring-sky-200">
-            <Image
-              src={AllImages.profile}
-              alt={technician?.name || "Technician"}
-              fill
-              sizes="28px"
-              className="object-cover"
-            />
+            <UserAvatar src={row.visit.technicianId?.avatarUrl} alt={row.visit.technicianId?.name || "Technician"} />
           </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-medium text-gray-900 leading-tight">
-              {technician?.name || "Carlos Martínez"}
-            </span>
-            {technician?.role && (
-              <span className="text-[11px] text-gray-400 font-normal">
-                {technician.role}
-              </span>
-            )}
-          </div>
+          <span className="text-sm font-medium text-gray-900 leading-tight">{row.visit.technicianId?.name || "—"}</span>
         </div>
       ),
     },
     {
       header: "pH",
-      accessorKey: "ph",
+      accessorKey: "report",
       cellClassName: "text-sm font-semibold text-gray-800 py-4",
+      render: (_, row) => <span>{readingValue(row.report, "ph") ?? "—"}</span>,
     },
     {
-      header: "Choline",
-      accessorKey: "chlorine",
+      header: "Chlorine",
+      accessorKey: "report",
       cellClassName: "text-sm text-gray-700 font-medium py-4",
-    },
-    {
-      header: "Alkalinity",
-      accessorKey: "alkalinity",
-      cellClassName: "text-sm text-gray-700 font-medium py-4",
-    },
-    {
-      header: "Temperature",
-      accessorKey: "temperature",
-      cellClassName: "text-sm text-gray-700 font-medium py-4",
+      render: (_, row) => <span>{readingValue(row.report, "chlor") ?? "—"}</span>,
     },
     {
       header: "Status",
-      accessorKey: "status",
+      accessorKey: "visit",
       cellClassName: "py-4",
-      render: (status: string) => {
-        const isCompleted = status === "Completed";
+      render: (_, row) => {
+        const isCompleted = row.visit.status === "COMPLETED";
         return (
-          <span
-            className={`inline-flex items-center px-3 py-1 rounded-lg text-xs font-semibold ${isCompleted
-                ? "text-emerald-700 bg-emerald-50 border border-emerald-300"
-                : "text-amber-700 bg-amber-50 border border-amber-300"
-              }`}
-          >
-            {status}
+          <span className={`inline-flex items-center px-3 py-1 rounded-lg text-xs font-semibold ${isCompleted ? "text-emerald-700 bg-emerald-50 border border-emerald-300" : "text-amber-700 bg-amber-50 border border-amber-300"}`}>
+            {isCompleted ? "Completed" : "Awaiting approval"}
           </span>
         );
       },
     },
     {
       header: "Action",
-      accessorKey: "id",
+      accessorKey: "visit",
       cellClassName: "py-4 text-center",
-      render: (_, record) => (
-        <button
-          type="button"
-          onClick={() => onViewVisit(record)}
-          className="p-1.5 rounded-lg text-gray-500 hover:text-sky-600 hover:bg-sky-50 transition-colors cursor-pointer"
-          title="View Visit Report"
-          aria-label="View visit report"
-        >
-          <Eye className="w-5 h-5" />
-        </button>
-      ),
+      render: (_, row) =>
+        row.report ? (
+          <button
+            type="button"
+            onClick={() => onViewVisit(row)}
+            className="p-1.5 rounded-lg text-gray-500 hover:text-sky-600 hover:bg-sky-50 transition-colors cursor-pointer"
+            title="View Visit Report"
+            aria-label="View visit report"
+          >
+            <Eye className="w-5 h-5" />
+          </button>
+        ) : null,
     },
   ];
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200/80 shadow-xs overflow-hidden">
-      <ReusableTable<ServiceHistoryRecord>
-        columns={columns}
-        data={data}
-        scroll={true}
-        pagination={total > 10}
-        currentPage={currentPage}
-        setCurrentPage={onPageChange}
-        limit={10}
-        total={total}
-      />
+      <ReusableTable<ServiceHistoryRow> columns={columns} data={data} scroll={true} pagination={total > 10} currentPage={currentPage} setCurrentPage={onPageChange} limit={10} total={total} />
     </div>
   );
 };
 
 export default ServiceHistoryTable;
-

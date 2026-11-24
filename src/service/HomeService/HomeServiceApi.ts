@@ -1,4 +1,5 @@
 import { getBaseUrl } from "@/helpers/config/envConfig";
+import { post } from "@/lib/apiRequest";
 import type { IApiResult } from "@/types";
 
 /** `GET /public/plans` item (Postman "List Public Plans"). Prices are per year. */
@@ -34,3 +35,25 @@ export async function getPublicPlans(): Promise<IPublicPlan[] | null> {
     return null;
   }
 }
+
+/** `POST /public/leads` body (Postman "Submit Public Inquiry"). No auth required. */
+export interface ISubmitLeadPayload {
+  name: string;
+  email: string;
+  phone?: string;
+  kind?: "QUOTE" | "CONTACT";
+  selectedPlanCode?: string;
+  poolLocation?: string;
+  poolSize?: string;
+  message?: string;
+}
+
+export interface ISubmitLeadResult {
+  id: string;
+  reference: string;
+  message: string;
+}
+
+/** Client Component helper (quote request / contact forms, logged out). */
+export const submitPublicLead = (payload: ISubmitLeadPayload) =>
+  post<ISubmitLeadResult>("/public/leads", payload);

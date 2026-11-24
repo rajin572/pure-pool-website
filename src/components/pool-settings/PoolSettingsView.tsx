@@ -1,14 +1,19 @@
 "use client";
 
-import React, { useState } from "react";
-import { useForm } from "react-hook-form";
+import React, { useEffect, useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
+import { toast } from "sonner";
 import Container from "@/components/ui/CustomUi/Container";
 import ReuseableForm from "@/components/ui/CustomUi/ReuseForm/ReuseableForm";
 import {
-  MOCK_POOL_SETTINGS,
-  IPoolSettings,
-  // updatePoolSettingsApi,
+  getPoolSettings,
+  updatePoolSettings,
+  updatePropertyAddress,
+  toFormValues,
+  type IPoolSettings,
 } from "@/service/PoolSettingsService/PoolSettingsServiceApi";
+import { getMyPools, type IPoolSummary } from "@/service/MyPoolService/MyPoolServiceApi";
+import { errorMessage } from "@/lib/apiRequest";
 import PoolSettingsHeader from "./PoolSettingsHeader";
 import LocationAccessCard from "./LocationAccessCard";
 import SpecificationsCard from "./SpecificationsCard";
@@ -18,78 +23,139 @@ import NeedAHandCard from "./NeedAHandCard";
 import SaveBar from "./SaveBar";
 
 export const PoolSettingsView: React.FC = () => {
-  const [activePoolId, setActivePoolId] = useState<string>("main");
+  const [pools, setPools] = useState<IPoolSummary[] | null>(null);
+  const [activePoolId, setActivePoolId] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const currentPoolData =
-    MOCK_POOL_SETTINGS[activePoolId] || MOCK_POOL_SETTINGS.main;
+  const form = useForm<IPoolSettings>({ mode: "onChange" });
+  const photos = useWatch({ control: form.control, name: "photos" }) || [];
 
-  const form = useForm<IPoolSettings>({
-    defaultValues: currentPoolData,
-    mode: "onChange",
-  });
+  useEffect(() => {
+    getMyPools().then((res) => {
+      if (res.success) {
+        setPools(res.data);
+        if (res.data[0]) setActivePoolId(res.data[0]._id);
+      } else {
+        toast.error(errorMessage(res, "Could not load your pools."));
+      }
+    });
+  }, []);
 
-  const handlePoolChange = (poolId: string) => {
-    setActivePoolId(poolId);
-    const targetData = MOCK_POOL_SETTINGS[poolId] || MOCK_POOL_SETTINGS.main;
-    form.reset(targetData);
-  };
+  useEffect(() => {
+    if (!activePoolId) return;
+    let cancelled = false;
+    (async () => {
+      setIsLoading(true);
+      const res = await getPoolSettings(activePoolId);
+      if (cancelled) return;
+      setIsLoading(false);
+      if (res.success) {
+        form.reset(toFormValues(res.data.pool, res.data.property));
+      } else {
+        toast.error(errorMessage(res, "Could not load pool settings."));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePoolId]);
 
+  const handlePoolChange = (poolId: string) => setActivePoolId(poolId);
   const handleCancel = () => {
-    form.reset(currentPoolData);
+    if (activePoolId) {
+      getPoolSettings(activePoolId).then((res) => {
+        if (res.success) form.reset(toFormValues(res.data.pool, res.data.property));
+      });
+    }
   };
 
   const onSubmit = async (data: IPoolSettings) => {
-    // API INTEGRATION POINT (PATCH / PUT)
-    // =========================================================================
-    // try {
-    //   const response = await updatePoolSettingsApi(activePoolId, data);
-    //   if (response.success) {
-    //     // Update local cache / revalidate tags
-    //     form.reset(data);
-    //   }
-    // } catch (error) {
-    //   console.error("Failed to update pool settings", error);
-    // }
-    // =========================================================================
-    console.log("Saving Pool Settings:", data);
-    form.reset(data); // Marks form as pristine after save
+    const reviewRequired: string[] = [];
+
+    if (data.propertyId) {
+      const propRes = await updatePropertyAddress(data.propertyId, {
+        address: data.address,
+        city: data.city,
+        postalCode: data.postalCode,
+      });
+      if (!propRes.success) {
+        toast.error(errorMessage(propRes, "Could not save the address."));
+        return;
+      }
+      if (propRes.data.reviewRequired) reviewRequired.push(...propRes.data.reviewRequired);
+    }
+
+    const poolRes = await updatePoolSettings(data.id, {
+      poolType: data.poolType || undefined,
+      volumeM3: data.volumeM3 ? Number(data.volumeM3) : undefined,
+      length: data.dimensions.length ? Number(data.dimensions.length) : undefined,
+      width: data.dimensions.width ? Number(data.dimensions.width) : undefined,
+      depth: data.dimensions.depth ? Number(data.dimensions.depth) : undefined,
+      waterType: data.waterTreatment || undefined,
+      surfaceType: data.surfaceType || undefined,
+      equipmentNotes: data.equipmentNotes,
+      accessInstructions: data.accessInstructions,
+      photos: data.photos,
+    });
+    if (!poolRes.success) {
+      toast.error(errorMessage(poolRes, "Could not save the pool details."));
+      return;
+    }
+    if (poolRes.data.reviewRequired) reviewRequired.push(...poolRes.data.reviewRequired);
+
+    form.reset(data);
+    if (reviewRequired.length > 0) {
+      toast.success(`Saved. ${reviewRequired.join(", ")} will be verified by our office before they apply.`);
+    } else {
+      toast.success("Pool settings saved.");
+    }
   };
+
+  if (!pools || isLoading) {
+    return (
+      <div className="bg-[#FAFBFD] min-h-screen relative">
+        <div className="w-full bg-[#041D37] h-20 sm:h-24 shadow-sm" />
+        <Container className="py-10 text-center text-sm text-gray-500">Loading pool settings...</Container>
+      </div>
+    );
+  }
+
+  if (pools.length === 0) {
+    return (
+      <div className="bg-[#FAFBFD] min-h-screen relative">
+        <div className="w-full bg-[#041D37] h-20 sm:h-24 shadow-sm" />
+        <Container className="py-10 text-center text-sm text-gray-500">No pools are registered on your account yet.</Container>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-[#FAFBFD] min-h-screen relative pb-28 sm:pb-32">
-      {/* Top Navbar Header Bar for Fixed Navbar Contrast */}
       <div className="w-full bg-[#041D37] h-20 sm:h-24 shadow-sm" />
 
       <Container className="py-6 sm:py-8 lg:py-10 space-y-6 sm:space-y-8">
-        {/* Header & Pool Switcher */}
-        <PoolSettingsHeader
-          activePoolId={activePoolId}
-          onPoolChange={handlePoolChange}
-        />
+        <PoolSettingsHeader pools={pools} activePoolId={activePoolId} onPoolChange={handlePoolChange} />
 
-        {/* Main Content Form */}
         <ReuseableForm form={form} onSubmit={onSubmit}>
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            {/* Left Column (Location & Access, Specs, Equipment) */}
             <div className="lg:col-span-7 xl:col-span-8 space-y-6">
               <LocationAccessCard control={form.control} />
               <SpecificationsCard control={form.control} />
               <EquipmentCard control={form.control} />
             </div>
 
-            {/* Right Column (Photos, Support Help Card) */}
             <div className="lg:col-span-5 xl:col-span-4 space-y-6">
-              <PhotosCard />
+              <PhotosCard
+                photos={photos}
+                poolId={activePoolId}
+                onPhotosChange={(photos) => form.setValue("photos", photos, { shouldDirty: true })}
+              />
               <NeedAHandCard />
             </div>
           </div>
 
-          {/* Sticky Bottom Save / Cancel Bar */}
-          <SaveBar
-            isDirty={form.formState.isDirty}
-            isSubmitting={form.formState.isSubmitting}
-            onCancel={handleCancel}
-          />
+          <SaveBar isDirty={form.formState.isDirty} isSubmitting={form.formState.isSubmitting} onCancel={handleCancel} />
         </ReuseableForm>
       </Container>
     </div>

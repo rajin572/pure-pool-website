@@ -2,8 +2,9 @@
 
 import React from "react";
 import { Search, ChevronDown } from "lucide-react";
+import type { DocumentKind } from "@/service/DocumentsService/DocumentsServiceApi";
 
-export type DocumentCategory = "All" | "Warranty" | "Manual" | "Certificate";
+export type DocumentCategory = "All" | DocumentKind;
 
 interface DocumentsToolbarProps {
   activeCategory: DocumentCategory;
@@ -16,9 +17,9 @@ interface DocumentsToolbarProps {
 
 const CATEGORIES: { label: string; value: DocumentCategory }[] = [
   { label: "All", value: "All" },
-  { label: "Warranties", value: "Warranty" },
-  { label: "Manuals", value: "Manual" },
-  { label: "Certificates", value: "Certificate" },
+  { label: "Warranties", value: "WARRANTY" },
+  { label: "Manuals", value: "MANUAL" },
+  { label: "Certificates", value: "CERTIFICATE" },
 ];
 
 export const DocumentsToolbar: React.FC<DocumentsToolbarProps> = ({
@@ -31,9 +32,7 @@ export const DocumentsToolbar: React.FC<DocumentsToolbarProps> = ({
 }) => {
   return (
     <div className="w-full flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-      {/* Left: Search input & Category Chips */}
       <div className="flex flex-wrap items-center gap-3 flex-1">
-        {/* Search Input */}
         <div className="relative w-full sm:w-[300px] shrink-0">
           <Search className="w-5 h-5 text-zinc-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
@@ -45,7 +44,6 @@ export const DocumentsToolbar: React.FC<DocumentsToolbarProps> = ({
           />
         </div>
 
-        {/* Category Pills */}
         <div className="flex flex-wrap items-center gap-2">
           {CATEGORIES.map((cat) => {
             const isSelected = activeCategory === cat.value;
@@ -67,7 +65,6 @@ export const DocumentsToolbar: React.FC<DocumentsToolbarProps> = ({
         </div>
       </div>
 
-      {/* Right: Sort Dropdown */}
       <div className="relative shrink-0">
         <select
           value={sortBy}
@@ -85,4 +82,3 @@ export const DocumentsToolbar: React.FC<DocumentsToolbarProps> = ({
 };
 
 export default DocumentsToolbar;
-

@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Send, CheckCircle2 } from "lucide-react";
+import { Send, CheckCircle2, MessageCircle } from "lucide-react";
 import ReuseableForm from "@/components/ui/CustomUi/ReuseForm/ReuseableForm";
 import {
   FormInput,
@@ -12,55 +12,67 @@ import {
 } from "@/components/ui/CustomUi/ReuseForm/Form";
 import { SelectItem } from "@/components/ui/select";
 import ReusableGradientButton from "@/components/ui/CustomUi/ReusableGradientButton";
-import {
-  ContactMessagePayload,
-  submitContactMessage,
-} from "@/service/HelpCenterService/HelpCenterServiceApi";
+import { submitPublicLead } from "@/service/HomeService/HomeServiceApi";
+import { createConversation, sendMessage } from "@/service/ChatService/ChatServiceApi";
+import { errorMessage } from "@/lib/apiRequest";
+import { useSessionUser } from "@/lib/useSessionUser";
+import ConversationModal from "@/components/support/ConversationModal";
 
-/**
- * ==============================================================================
- * REDUX / API HOOKS (Ready for live backend integration)
- * ==============================================================================
- * When wiring up backend:
- * import { useSubmitContactMessageMutation } from "@/redux/api/supportApi";
- * const [submitMessage, { isLoading }] = useSubmitContactMessageMutation();
- * ==============================================================================
- */
+interface ContactFormValues {
+  name: string;
+  email: string;
+  phone?: string;
+  subject: string;
+  message: string;
+  consent: boolean;
+}
 
 export const SendMessageForm: React.FC = () => {
+  const me = useSessionUser();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSent, setIsSent] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
 
-  const form = useForm<ContactMessagePayload>({
-    defaultValues: {
-      name: "",
-      email: "",
-      phone: "",
-      subject: "General Inquiry",
-      message: "",
-      consent: false,
-    },
+  const form = useForm<ContactFormValues>({
+    defaultValues: { name: me?.name || "", email: me?.email || "", phone: me?.phone || "", subject: "General Inquiry", message: "", consent: false },
   });
 
-  const onSubmit = async (values: ContactMessagePayload) => {
+  const onSubmit = async (values: ContactFormValues) => {
     setIsSubmitting(true);
-    try {
-      /**
-       * In live mode:
-       * const res = await submitMessage(values).unwrap();
-       */
-      const res = await submitContactMessage(values);
-      if (res.success) {
+    setSubmitError(null);
+
+    if (me) {
+      const convRes = await createConversation({ kind: "CUSTOMER_SUPPORT" });
+      if (!convRes.success) {
+        setSubmitError(errorMessage(convRes));
+        setIsSubmitting(false);
+        return;
+      }
+      const msgRes = await sendMessage(convRes.data._id, `${values.subject}: ${values.message}`);
+      setIsSubmitting(false);
+      if (msgRes.success) {
         setIsSent(true);
         form.reset();
-        setTimeout(() => {
-          setIsSent(false);
-        }, 5000);
+      } else {
+        setSubmitError(errorMessage(msgRes));
       }
-    } catch {
-      // Handle error
-    } finally {
-      setIsSubmitting(false);
+      return;
+    }
+
+    const res = await submitPublicLead({
+      name: values.name,
+      email: values.email,
+      phone: values.phone,
+      kind: "CONTACT",
+      message: `${values.subject}: ${values.message}`,
+    });
+    setIsSubmitting(false);
+    if (res.success) {
+      setIsSent(true);
+      form.reset();
+    } else {
+      setSubmitError(errorMessage(res));
     }
   };
 
@@ -82,14 +94,22 @@ export const SendMessageForm: React.FC = () => {
           <p className="text-sm text-emerald-700 max-w-md">
             Thank you for reaching out. A Pure Pool technician or support specialist has received your message and will get back to you shortly.
           </p>
+          {me && (
+            <button
+              type="button"
+              onClick={() => setChatOpen(true)}
+              className="mt-2 inline-flex items-center gap-1.5 text-sm font-bold text-emerald-700 hover:underline cursor-pointer"
+            >
+              <MessageCircle className="w-4 h-4" /> Continue in chat
+            </button>
+          )}
         </div>
       ) : (
-        <ReuseableForm<ContactMessagePayload>
+        <ReuseableForm<ContactFormValues>
           form={form}
           onSubmit={onSubmit}
           className="flex flex-col gap-5"
         >
-          {/* Row 1: Full Name & Email */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormInput
               control={form.control}
@@ -108,7 +128,6 @@ export const SendMessageForm: React.FC = () => {
             />
           </div>
 
-          {/* Row 2: Phone & Topic/Subject */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormInput
               control={form.control}
@@ -134,7 +153,6 @@ export const SendMessageForm: React.FC = () => {
             </FormSelect>
           </div>
 
-          {/* Row 3: Message Textarea */}
           <FormTextarea
             control={form.control}
             name="message"
@@ -144,16 +162,18 @@ export const SendMessageForm: React.FC = () => {
             inputClassName="bg-zinc-50 border-zinc-200 focus:border-sky-500 rounded-xl text-zinc-900 placeholder:text-zinc-400 min-h-[120px]"
           />
 
-          {/* Consent Checkbox */}
-          <div className="pt-1">
-            <FormCheckbox
-              control={form.control}
-              name="consent"
-              label="I agree to the privacy policy and consent to Pure Pool contacting me regarding this inquiry."
-            />
-          </div>
+          {!me && (
+            <div className="pt-1">
+              <FormCheckbox
+                control={form.control}
+                name="consent"
+                label="I agree to the privacy policy and consent to Pure Pool contacting me regarding this inquiry."
+              />
+            </div>
+          )}
 
-          {/* Submit Button */}
+          {submitError && <p className="text-sm text-red-600">{submitError}</p>}
+
           <div className="pt-2 flex justify-end">
             <ReusableGradientButton
               type="submit"
@@ -166,9 +186,18 @@ export const SendMessageForm: React.FC = () => {
           </div>
         </ReuseableForm>
       )}
+
+      {me && (
+        <ConversationModal
+          open={chatOpen}
+          onOpenChange={setChatOpen}
+          kind="CUSTOMER_SUPPORT"
+          title="Pure Pool Support"
+          subtitle="Our office team usually replies within 2 hours"
+        />
+      )}
     </div>
   );
 };
 
 export default SendMessageForm;
-
